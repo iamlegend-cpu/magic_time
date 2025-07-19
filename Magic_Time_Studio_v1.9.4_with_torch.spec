@@ -112,6 +112,8 @@ a = Analysis(
         'whisper',
         'googletrans', 'deepl', 'librosa', 'psutil', 'cpuinfo',
         'numpy', 'numpy.core._methods', 'numpy.lib.format',
+        # Tkinter menu imports
+        'tkinter', 'tkinter.ttk', 'tkinter.messagebox', 'tkinter.filedialog', 'tkinter.simpledialog',
         # MoviePy hidden imports
         'moviepy.editor',
         'moviepy.audio.io.AudioFileClip',
@@ -143,6 +145,7 @@ a = Analysis(
         'hooks/hook_torch_inspect.py',
         'hooks/hook_llvmlite_fix.py',
         'hooks/hook_torch_dll_fix.py',
+        'hooks/hook_menubalk_fix.py',
     ],
     excludes=[],
     noarchive=False,

@@ -5917,6 +5917,15 @@ if __name__ == "__main__":
         setup_ui()
         
         update_loading_status("Toevoegen van menu's...")
+        # Initialiseer menubalk expliciet
+        if 'menubalk' in globals() and menubalk is not None:
+            root.config(menu=menubalk)
+            voeg_tools_menu_toe()
+        else:
+            # Fallback: maak menubalk aan als deze niet bestaat
+            menubalk = tk.Menu(root)
+            root.config(menu=menubalk)
+            voeg_tools_menu_toe()
         
         # Memory optimalisatie na setup
         update_loading_status("Optimaliseren van geheugen...")
