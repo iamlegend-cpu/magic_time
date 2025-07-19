@@ -1,0 +1,25 @@
+{
+  "deepl_key": "",
+  "translator": "google",
+  "huidige_vertaler": "google",
+  "model_selection": "base",
+  "output_format": "srt",
+  "cpu_limit": 50,
+  "subtitle_type": "Softcoded (SRT bestand)",
+  "hardcoded_language": "Alleen Nederlands",
+  "font_size": 11,
+  "logging_config": {
+    "log_system_info": false,
+    "log_audio_extraction": true,
+    "log_whisper_transcription": true,
+    "log_translation": true,
+    "log_file_operations": true,
+    "log_performance": true,
+    "log_errors": true,
+    "log_warnings": true,
+    "log_debug": true,
+    "log_cleanup": true,
+    "log_api_calls": true,
+    "log_progress": true
+  }
+}
