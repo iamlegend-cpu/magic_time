@@ -1004,11 +1004,13 @@ def extract_audio_from_video(video_path, output_dir=None):
         
         # Voer FFmpeg uit
         import subprocess
-        result = subprocess.run(
+        result = run_and_track_subprocess(
             cmd,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=300  # 5 minuten timeout
+            timeout=300,
+            creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
         )
         
         if result.returncode == 0:
@@ -1061,11 +1063,13 @@ def get_video_info(video_path):
         ]
         
         import subprocess
-        result = subprocess.run(
+        result = run_and_track_subprocess(
             cmd,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=60  # 1 minuut timeout
+            timeout=60,
+            creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
         )
         
         # Parse duration uit FFmpeg output
@@ -2852,11 +2856,13 @@ def process_video_with_whisper(video_path, model_name="base", language="auto"):
                     
                     log_debug(f"🎬 FFmpeg commando: {' '.join(ffmpeg_cmd)}")
                     
-                    result = subprocess.run(
+                    result = run_and_track_subprocess(
                         ffmpeg_cmd,
-                        capture_output=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
                         text=True,
-                        timeout=300  # 5 minuten timeout
+                        timeout=300,
+                        creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
                     )
                     
                     if result.returncode == 0:
@@ -3143,6 +3149,21 @@ def kill_switch():
             # Stop alle verwerking
             processing_active = False
 
+            # Stop alle actieve subprocessen
+            for proc in list(ACTIVE_SUBPROCESSES):
+                try:
+                    if PSUTIL_AVAILABLE:
+                        p = psutil.Process(proc.pid)
+                        p.kill()
+                    else:
+                        proc.kill()
+                except Exception:
+                    pass
+                try:
+                    if proc in ACTIVE_SUBPROCESSES:
+                        ACTIVE_SUBPROCESSES.remove(proc)
+                except Exception:
+                    pass
             # Stop parallel processor als deze bestaat
             if "parallel_processor" in globals() and parallel_processor is not None:
                 if (
@@ -5846,6 +5867,38 @@ De applicatie gebruikt nog steeds CUDA voor versnelde transcriptie.
     
     log_debug("📋 CUDA installatie instructies getoond")
     messagebox.showinfo("🎮 CUDA Installatie", instructions)
+
+# --- Subprocess tracking voor kill switch ---
+ACTIVE_SUBPROCESSES = []
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+
+def run_and_track_subprocess(cmd, **kwargs):
+    """Start een subprocess, voeg toe aan ACTIVE_SUBPROCESSES, en wacht tot klaar."""
+    import subprocess
+    proc = subprocess.Popen(cmd, **kwargs)
+    ACTIVE_SUBPROCESSES.append(proc)
+    try:
+        out, err = proc.communicate(timeout=kwargs.get('timeout'))
+        returncode = proc.returncode
+    except Exception as e:
+        # Bij uitzondering killen
+        try:
+            if PSUTIL_AVAILABLE:
+                p = psutil.Process(proc.pid)
+                p.kill()
+            else:
+                proc.kill()
+        except Exception:
+            pass
+        raise e
+    finally:
+        if proc in ACTIVE_SUBPROCESSES:
+            ACTIVE_SUBPROCESSES.remove(proc)
+    return subprocess.CompletedProcess(cmd, returncode, out, err)
 
 if __name__ == "__main__":
     try:
