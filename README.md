@@ -22,22 +22,28 @@ Magic Time Studio is een krachtige, gebruiksvriendelijke desktopapplicatie voor 
 
 1. **Clone of download** deze repository.
 2. **Maak een nieuwe virtuele omgeving aan:**
-   ```
+
+   ```sh
    python -m venv venv
    ```
+
 3. **Activeer de venv:**
    - PowerShell: `./venv/Scripts/Activate.ps1`
    - CMD: `./venv/Scripts/activate.bat`
 4. **Installeer de dependencies:**
-   ```
+
+   ```sh
    pip install -r requirements.txt
    ```
+
 5. **Installeer torch (PyTorch) handmatig:**
    - Voor CPU-only:
-     ```
+
+     ```sh
      pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
      ```
-   - Zie https://pytorch.org/get-started/locally/ voor andere opties.
+
+   - Zie <https://pytorch.org/get-started/locally/> voor andere opties.
 
 ---
 
@@ -45,12 +51,14 @@ Magic Time Studio is een krachtige, gebruiksvriendelijke desktopapplicatie voor 
 
 1. **Zorg dat alle dependencies geïnstalleerd zijn.**
 2. **Bouw de executable:**
-   ```
+
+   ```sh
    pyinstaller --clean Magic_Time_Studio_v1.9.4_with_torch.spec
    ```
+
 3. **De .exe vind je in de `dist/` map.**
 
-### Let op:
+### Let op
 
 - De .spec-file zorgt dat alle benodigde Whisper assets (`mel_filters.npz`, `multilingual.tiktoken`) en custom hooks worden meegenomen.
 - MoviePy, Whisper, Numba, NumPy, SciPy en andere gevoelige dependencies zijn op stabiele, bewezen versies vastgezet.
@@ -87,4 +95,4 @@ Magic Time Studio is een krachtige, gebruiksvriendelijke desktopapplicatie voor 
 
 ---
 
-Veel succes en plezier met Magic Time Studio! 
+Veel succes en plezier met Magic Time Studio!

@@ -36,10 +36,9 @@ MAX_UI_UPDATE_BATCH_SIZE = 10
 processing_active = False
 
 def block_interface_during_processing():
-    """Blokkeer alle instellingen tijdens verwerking"""
+    """Blokkeer alle instellingen tijdens verwerking, behalve logvenster en bestand toevoegen/verwijderen (behalve huidig bestand)."""
     global processing_active
     processing_active = True
-    
     try:
         # Blokkeer dropdowns in hoofdinterface
         if taal_combobox is not None:
@@ -48,38 +47,37 @@ def block_interface_during_processing():
             content_type_combobox.config(state="disabled")
         if 'cpu_slider' in globals():
             globals()['cpu_slider'].config(state="disabled")
-        
-        # Blokkeer start knop (verwijder knoppen blijven actief)
+        # Blokkeer start knop
         if 'start_button' in globals() and globals()['start_button'] is not None:
             globals()['start_button'].config(state="disabled", text="Verwerking bezig...")
-        
-        # Listbox selectie blijft actief voor verwijderen bestanden
-        # (wordt niet geblokkeerd)
-        
-        # Blokkeer configuratie venster als het open is
+        # Blokkeer instellingen/configuratieknoppen
         if 'config_window' in globals() and config_window is not None:
             try:
-                # Recursieve functie om alle widgets te blokkeren
                 def block_widgets(parent_widget):
                     for widget in parent_widget.winfo_children():
                         try:
-                            if hasattr(widget, 'config'):
+                            if hasattr(widget, 'config') and widget.winfo_class() == 'Button':
                                 widget.config(state="disabled")
-                            
-                            # Recursief doorlopen van child widgets
                             if hasattr(widget, 'winfo_children'):
                                 block_widgets(widget)
                         except Exception as e:
                             log_debug(f"❌ Fout bij blokkeren widget: {e}")
                             pass
-                
-                # Blokkeer alle widgets in configuratie venster
                 block_widgets(config_window)
                 log_debug("🔒 Configuratie venster geblokkeerd")
             except Exception as e:
                 log_debug(f"❌ Fout bij blokkeren configuratie: {e}")
-        
-        log_debug("🔒 Interface geblokkeerd tijdens verwerking")
+        # Blokkeer verwijder-knoppen alleen voor het bestand dat verwerkt wordt
+        if 'btn_verwijder' in globals() and btn_verwijder is not None:
+            btn_verwijder.config(state="normal")
+        if 'btn_verwijder_alles' in globals() and btn_verwijder_alles is not None:
+            btn_verwijder_alles.config(state="normal")
+        # Bestand toevoegen knoppen blijven actief
+        if 'btn_voeg_bestand' in globals() and btn_voeg_bestand is not None:
+            btn_voeg_bestand.config(state="normal")
+        if 'btn_voeg_map' in globals() and btn_voeg_map is not None:
+            btn_voeg_map.config(state="normal")
+        log_debug("🔒 Interface geblokkeerd tijdens verwerking (alleen toevoegen/verwijderen toegestaan, huidig bestand beschermd)")
     except Exception as e:
         log_debug(f"❌ Fout bij blokkeren interface: {e}")
 
@@ -87,7 +85,6 @@ def unblock_interface_after_processing():
     """Ontgrendel alle instellingen na verwerking"""
     global processing_active
     processing_active = False
-    
     try:
         # Ontgrendel dropdowns in hoofdinterface
         if taal_combobox is not None:
@@ -96,37 +93,36 @@ def unblock_interface_after_processing():
             content_type_combobox.config(state="normal")
         if 'cpu_slider' in globals():
             globals()['cpu_slider'].config(state="normal")
-        
         # Ontgrendel start knop
         if 'start_button' in globals() and globals()['start_button'] is not None:
             globals()['start_button'].config(state="normal", text="Start ondertiteling")
-        
-        # Listbox selectie blijft altijd actief
-        # (wordt niet ontgrendeld omdat het nooit geblokkeerd was)
-        
-        # Ontgrendel configuratie venster als het open is
+        # Ontgrendel instellingen/configuratieknoppen
         if 'config_window' in globals() and config_window is not None:
             try:
-                # Recursieve functie om alle widgets te ontgrendelen
                 def unblock_widgets(parent_widget):
                     for widget in parent_widget.winfo_children():
                         try:
-                            if hasattr(widget, 'config'):
+                            if hasattr(widget, 'config') and widget.winfo_class() == 'Button':
                                 widget.config(state="normal")
-                            
-                            # Recursief doorlopen van child widgets
                             if hasattr(widget, 'winfo_children'):
                                 unblock_widgets(widget)
                         except Exception as e:
                             log_debug(f"❌ Fout bij ontgrendelen widget: {e}")
                             pass
-                
-                # Ontgrendel alle widgets in configuratie venster
                 unblock_widgets(config_window)
                 log_debug("🔓 Configuratie venster ontgrendeld")
             except Exception as e:
                 log_debug(f"❌ Fout bij ontgrendelen configuratie: {e}")
-        
+        # Ontgrendel verwijder-knoppen
+        if 'btn_verwijder' in globals() and btn_verwijder is not None:
+            btn_verwijder.config(state="normal")
+        if 'btn_verwijder_alles' in globals() and btn_verwijder_alles is not None:
+            btn_verwijder_alles.config(state="normal")
+        # Bestand toevoegen knoppen blijven actief
+        if 'btn_voeg_bestand' in globals() and btn_voeg_bestand is not None:
+            btn_voeg_bestand.config(state="normal")
+        if 'btn_voeg_map' in globals() and btn_voeg_map is not None:
+            btn_voeg_map.config(state="normal")
         log_debug("🔓 Interface ontgrendeld na verwerking")
     except Exception as e:
         log_debug(f"❌ Fout bij ontgrendelen interface: {e}")
@@ -281,6 +277,10 @@ else:
         # Fallback voor wanneer __file__ niet beschikbaar is
         BASE_DIR = os.getcwd()
 
+# Outputmap voor gebruikersbestanden (zoals SRT)
+USER_OUTPUT_DIR = os.path.join(os.path.expanduser('~'), 'MagicTimeStudio', 'output')
+os.makedirs(USER_OUTPUT_DIR, exist_ok=True)
+
 # 📁 Paden
 ASSETS = os.path.join(BASE_DIR, "assets")
 CONFIG_PAD = os.path.join(BASE_DIR, "config.json")
@@ -317,8 +317,7 @@ taal_var = None    # Wordt later geïnitialiseerd
 thema_var = None   # Wordt later geïnitialiseerd
 
 # Vertaling variabelen
-huidige_vertaler = "google"
-deepl_key = ""
+huidige_vertaler = "geen"  # Standaard op 'geen' zetten
 deepl_tekens_used = 0
 translator = None  # Wordt later geïnitialiseerd
 
@@ -866,7 +865,7 @@ def add_log_message(msg, level="INFO"):
     try:
         import tempfile
 
-        log_path = os.path.join(tempfile.gettempdir(), "MagicTime_debug_log.txt")
+        log_path = os.path.join(USER_OUTPUT_DIR, "MagicTime_debug_log.txt")
         with open(log_path, "a", encoding="utf-8") as f:
             f.write(full_msg + "\n")
     except Exception as e:
@@ -978,14 +977,14 @@ def extract_audio_from_video(video_path, output_dir=None):
         audio_path = os.path.join(output_dir, f"{video_name}_audio.wav")
         log_debug(f"🎵 Audio output pad: {audio_path}")
 
-        # Gebruik FFmpeg voor audio extractie
-        log_debug("🎬 Start FFmpeg audio extractie...")
-        
-        # FFmpeg pad
-        ffmpeg_path = os.path.join(os.path.dirname(__file__), "assets", "ffmpeg.exe")
+        # Gebruik altijd absoluut pad naar ffmpeg
+        ffmpeg_path = os.path.join(ASSETS, "ffmpeg.exe")
+        log_debug(f"🔍 Zoek ffmpeg op: {ffmpeg_path}")
         if not os.path.exists(ffmpeg_path):
-            # Fallback naar systeem FFmpeg
-            ffmpeg_path = "ffmpeg"
+            log_debug(f"❌ ffmpeg.exe niet gevonden in assets! ABORT.")
+            raise FileNotFoundError(f"ffmpeg.exe niet gevonden in assets: {ffmpeg_path}")
+        else:
+            log_debug(f"✅ ffmpeg.exe gevonden in assets.")
         
         # FFmpeg commando voor audio extractie met threading
         cmd = [
@@ -999,32 +998,36 @@ def extract_audio_from_video(video_path, output_dir=None):
             "-y",  # Overschrijf output bestand
             audio_path
         ]
-        
         log_debug(f"🔧 FFmpeg commando: {' '.join(cmd)}")
-        
-        # Voer FFmpeg uit
+        log_debug(f"🔍 Bestaat ffmpeg_path? {os.path.exists(ffmpeg_path)}")
+        log_debug(f"🔍 Bestaat output_dir? {os.path.exists(output_dir)}")
+
+        # --- Windows startupinfo om tray vensters te voorkomen ---
         import subprocess
+        startupinfo = None
+        if os.name == 'nt':
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+        # Voer FFmpeg uit
         result = run_and_track_subprocess(
             cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
             text=True,
             timeout=300,
-            creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
+            creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0,
+            startupinfo=startupinfo
         )
         
         if result.returncode == 0:
             log_debug(f"✅ Audio geëxtraheerd naar: {os.path.basename(audio_path)}")
-            
             if os.path.exists(audio_path):
                 file_size = os.path.getsize(audio_path) / (1024 * 1024)  # MB
                 log_debug(f"📊 Audio bestand grootte: {file_size:.2f} MB")
-                
-                # Check bestandsgrootte
-                if file_size < 0.1:  # Minder dan 100KB
+                if file_size < 0.1:
                     log_debug("⚠️ Audio bestand is erg klein, mogelijk geen audio in video")
                     return None
-                    
                 return audio_path
             else:
                 log_debug("❌ Audio bestand niet aangemaakt")
@@ -1032,7 +1035,6 @@ def extract_audio_from_video(video_path, output_dir=None):
         else:
             log_debug(f"❌ FFmpeg fout: {result.stderr}")
             return None
-
     except subprocess.TimeoutExpired:
         log_debug("❌ FFmpeg timeout - audio extractie duurde te lang")
         return None
@@ -1047,11 +1049,14 @@ def extract_audio_from_video(video_path, output_dir=None):
 def get_video_info(video_path):
     """Haal video metadata op met FFmpeg"""
     try:
-        # FFmpeg pad
-        ffmpeg_path = os.path.join(os.path.dirname(__file__), "assets", "ffmpeg.exe")
+        # Gebruik altijd absoluut pad naar ffmpeg
+        ffmpeg_path = os.path.join(ASSETS, "ffmpeg.exe")
+        log_debug(f"🔍 Zoek ffmpeg op: {ffmpeg_path}")
         if not os.path.exists(ffmpeg_path):
-            # Fallback naar systeem FFmpeg
-            ffmpeg_path = "ffmpeg"
+            log_debug(f"❌ ffmpeg.exe niet gevonden in assets! ABORT.")
+            raise FileNotFoundError(f"ffmpeg.exe niet gevonden in assets: {ffmpeg_path}")
+        else:
+            log_debug(f"✅ ffmpeg.exe gevonden in assets.")
         
         # FFmpeg commando voor video info met threading
         cmd = [
@@ -1061,37 +1066,36 @@ def get_video_info(video_path):
             "-f", "null",
             "-"
         ]
-        
+        log_debug(f"🔧 FFmpeg commando: {' '.join(cmd)}")
         import subprocess
+        startupinfo = None
+        if os.name == 'nt':
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         result = run_and_track_subprocess(
             cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,  # Alleen stderr nodig voor duration parsing
             text=True,
             timeout=60,
-            creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
+            creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0,
+            startupinfo=startupinfo
         )
-        
         # Parse duration uit FFmpeg output
         duration = None
         if result.stderr:
             import re
-            # Zoek naar duration in FFmpeg output
             duration_match = re.search(r"Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})", result.stderr)
             if duration_match:
                 hours = int(duration_match.group(1))
                 minutes = int(duration_match.group(2))
                 seconds = int(duration_match.group(3))
                 centiseconds = int(duration_match.group(4))
-                
                 duration = hours * 3600 + minutes * 60 + seconds + centiseconds / 100
                 log_debug(f"🎬 Video info: {duration:.2f}s")
-                
                 return {"duration": duration}
-        
         log_debug("❌ Kon video duration niet bepalen")
         return None
-        
     except Exception as e:
         log_debug(f"❌ Kon video info niet ophalen: {e}")
         return None
@@ -1219,68 +1223,38 @@ def organize_output():
 
 # 🌐 Vertaler + thema info inladen
 # translator wordt later geïnitialiseerd in setup_ui()
-huidige_vertaler = "google"
-deepl_key = None
+huidige_vertaler = "geen"
 deepl_tekens_used = 0
 opgeslagen_thema = "Dark"
 
 # Laad configuratie na logging_config definitie
 def load_configuration():
-    global huidige_vertaler, deepl_key, deepl_tekens_used, opgeslagen_thema, logging_config, subtitle_type, hardcoded_language, font_size
-    
-    if os.path.exists(CONFIG_PAD):
-        try:
-            with open(CONFIG_PAD, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                # Laad vertaler instellingen (compatibiliteit met oude config)
-                huidige_vertaler = data.get(
-                    "translator", data.get("huidige_vertaler", "google")
-                )
-                deepl_key = data.get("deepl_key", "")
-                deepl_tekens_used = data.get("deepl_used", 0)
-                opgeslagen_thema = data.get("thema", "dark")
-                
-                # Laad ondertitel type (softcoded/hardcoded)
-                subtitle_type = data.get("subtitle_type", "softcoded")
-                
-                # Laad hardcoded taal optie
-                hardcoded_language = data.get("hardcoded_language", "dutch_only")
-                
-                # Laad lettertype grootte
-                font_size = data.get("font_size", 9)
-                
-                # Laad logging configuratie
-                loaded_logging_config = data.get("logging_config", {})
-                for key in logging_config:
-                    if key in loaded_logging_config:
-                        logging_config[key] = loaded_logging_config[key]
-                
-                # Laad CPU limiet instelling
-                cpu_limit = data.get("cpu_limit", 50)
-                # cpu_limit_var wordt later geïnitialiseerd in setup_ui()
-                # We slaan de waarde op voor later gebruik
-                # Bereken worker count op basis van CPU limiet
-                if cpu_limit <= 25:
-                    worker_count = 1
-                elif cpu_limit <= 50:
-                    worker_count = 2
-                elif cpu_limit <= 75:
-                    worker_count = 4
-                else:
-                    worker_count = 6
-                if parallel_processor is not None:
-                    parallel_processor.max_workers = worker_count
-
-                log_debug(f"📋 Configuratie geladen - Vertaler: {huidige_vertaler}, Workers: {worker_count}, Ondertitels: {subtitle_type}, Lettertype: {font_size}")
+    global huidige_vertaler, subtitle_type, hardcoded_language, font_size, logging_config, deepl_key
+    try:
+        config_path = os.path.join(get_user_data_dir(), "config.json")
+        if os.path.exists(config_path):
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            deepl_key = config.get("deepl_key", None)
+            huidige_vertaler = config.get("huidige_vertaler", config.get("translator", "geen"))  # default is 'geen'
+            subtitle_type = config.get("subtitle_type", "softcoded")
+            hardcoded_language = config.get("hardcoded_language", "dutch_only")
+            font_size = config.get("font_size", 9)
+            logging_config = config.get("logging_config", logging_config)
+            worker_count = config.get("worker_count", 4)
             if huidige_vertaler == "deepl" and not deepl_key:
                 log_debug("⚠️ DeepL geselecteerd maar geen API key gevonden")
-        except Exception as e:
-            log_debug(f"❌ Fout bij laden configuratie: {e}")
-            huidige_vertaler = "google"
-            deepl_key = ""
+        else:
+            huidige_vertaler = "geen"  # default is 'geen'
             subtitle_type = "softcoded"
             hardcoded_language = "dutch_only"
             font_size = 9
+    except Exception as e:
+        log_debug(f"❌ Fout bij laden configuratie: {e}")
+        huidige_vertaler = "geen"  # default is 'geen'
+        subtitle_type = "softcoded"
+        hardcoded_language = "dutch_only"
+        font_size = 9
 
 # Laad configuratie
 load_configuration()
@@ -1294,12 +1268,9 @@ def sla_config_op():
         config = {
             "translator": huidige_vertaler,
             "huidige_vertaler": huidige_vertaler,  # Voor compatibiliteit
-            "deepl_key": deepl_key,
-            "deepl_used": deepl_tekens_used,
-            "thema": safe_get(thema_var),
             "logging_config": logging_config,
         }
-        config_path = os.path.join(get_user_data_dir(), "config.json")
+        config_path = os.path.join(BASE_DIR, "config.json")
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2)
         log_debug(f"💾 Configuratie opgeslagen - Vertaler: {huidige_vertaler}")
@@ -1366,7 +1337,7 @@ def apply_font_size_to_interface(new_font_size):
     global font_size
     font_size = new_font_size
     
-        # Recreate menubalk met nieuwe lettertype
+    # Recreate menubalk met nieuwe lettertype
     if root is not None and 'menubalk' in globals():
         global menubalk
         if menubalk is not None:
@@ -1374,12 +1345,10 @@ def apply_font_size_to_interface(new_font_size):
                 menubalk.destroy()
             except:
                 pass
-        # Maak nieuwe menubalk met juiste lettertype
         menubalk = tk.Menu(root, font=("Arial", new_font_size))
         root.config(menu=menubalk)
-        # Voeg menu items opnieuw toe
         voeg_tools_menu_toe()
-        log_debug(f"🔤 Menubalk opnieuw aangemaakt met lettertype grootte {new_font_size}")
+        log_debug(f"�� Menubalk opnieuw aangemaakt met lettertype grootte {new_font_size}")
     
     def apply_font_to_widgets(parent_widget):
         """Recursief lettertype toepassen op alle widgets"""
@@ -1945,7 +1914,7 @@ def diagnose_whisper_issues():
         # Test 2: Model download test
         try:
             log_debug("🔄 Test model download...")
-            model = whisper.load_model("tiny")  # Kleinste model voor snelle test
+            import torch; device = "cuda" if torch.cuda.is_available() else "cpu"; model = whisper.load_model("tiny", device=device)  # Kleinste model voor snelle test
             log_debug("✅ Model download succesvol")
         except Exception as e:
             log_debug(f"❌ Model download mislukt: {e}")
@@ -2002,6 +1971,7 @@ def transcribe_audio_with_whisper(audio_path, model_name="base", language="auto"
         if not os.path.exists(audio_path):
             update_status_safe("❌ Audio bestand bestaat niet")
             log_debug(f"❌ Audio bestand bestaat niet: {audio_path}")
+            reset_progress_bar()
             return None
         
         file_size = os.path.getsize(audio_path) / (1024 * 1024)  # MB
@@ -2011,6 +1981,7 @@ def transcribe_audio_with_whisper(audio_path, model_name="base", language="auto"
         if file_size < 0.01:  # Minder dan 10KB
             update_status_safe("❌ Audio bestand is te klein")
             log_debug("❌ Audio bestand is te klein - mogelijk geen audio")
+            reset_progress_bar()
             return None
 
         # Import Whisper
@@ -2025,38 +1996,45 @@ def transcribe_audio_with_whisper(audio_path, model_name="base", language="auto"
 
         update_status_safe(f"🔄 Model '{model_name}' laden...")
         log_debug(f"🔄 Whisper: model wordt geladen...")
-        # Laad model met error handling
-        try:
-            model = whisper.load_model(model_name)
-            update_status_safe(f"✅ Model '{model_name}' geladen")
-            log_debug(f"✅ Model geladen: {model_name}")
-        except Exception as e:
-            update_status_safe("❌ Model laden mislukt, probeer fallback...")
-            log_debug(f"❌ Model laden mislukt: {e}")
-            # Probeer fallback naar kleiner model
-            try:
-                update_status_safe("🔄 Probeer 'tiny' model...")
-                log_debug("🔄 Probeer fallback naar 'tiny' model...")
-                model = whisper.load_model("tiny")
-                update_status_safe("✅ Fallback model geladen")
-                log_debug("✅ Fallback model geladen: tiny")
-            except Exception as e2:
-                update_status_safe("❌ Model laden mislukt")
-                log_debug(f"❌ Fallback model ook mislukt: {e2}")
-                return None
+        whisper_model = whisper.load_model(model_name, device=device)
 
-        update_status_safe("🔄 Transcriptie bezig... (kan enkele minuten duren)")
-        log_debug(f"🔄 Whisper: transcriptie bezig...")
-        
-        # Transcribe met uitgebreide error handling
+        # --- GUI voortgangsfunctie ---
+        def whisper_progress_callback(progress):
+            # progress: float tussen 0.0 en 1.0
+            try:
+                if progress is not None and progress >= 0.0 and progress <= 1.0:
+                    percentage = int(progress * 100)
+                    if progress is not None:
+                        schedule_immediate_update(lambda: safe_config(progress_bar, value=percentage))
+                    if status_label is not None:
+                        schedule_priority_update(lambda: safe_config(status_label, text=f"🎤 Whisper transcriptie: {percentage}%"))
+            except Exception as e:
+                log_debug(f"❌ Fout bij Whisper voortgangsupdate: {e}")
+
+        # Gebruik eigen voortgangsbalk als die bestaat, anders de globale
+        global progress
+        progress_bar = progress if progress is not None else None
+
+        # Start transcriptie met voortgangsfunctie
+        result = None
         try:
-            # Gebruik segment-gewijze transcriptie voor betere multi-taal support
-            result = model.transcribe(
-                audio_path, 
+            result = whisper_model.transcribe(
+                audio_path,
                 language=language if language != "auto" else None,
-                verbose=False,  # Verminder output voor stabiliteit
-                word_timestamps=True,  # Voor betere segmentatie
-                condition_on_previous_text=False  # Voor betere multi-taal detectie
+                verbose=False,
+                word_timestamps=True,
+                condition_on_previous_text=False,
+                progress_callback=whisper_progress_callback
+            )
+        except TypeError:
+            # Oudere Whisper-versie zonder progress_callback
+            log_debug("⚠️ Whisper versie ondersteunt geen progress_callback, geen GUI voortgang mogelijk")
+            result = whisper_model.transcribe(
+                audio_path,
+                language=language if language != "auto" else None,
+                verbose=False,
+                word_timestamps=True,
+                condition_on_previous_text=False
             )
         except Exception as e:
             update_status_safe("❌ Transcriptie mislukt, probeer zonder taal...")
@@ -2065,16 +2043,18 @@ def transcribe_audio_with_whisper(audio_path, model_name="base", language="auto"
             try:
                 update_status_safe("🔄 Probeer transcriptie zonder taal...")
                 log_debug("🔄 Probeer transcriptie zonder taal specificatie...")
-                result = model.transcribe(audio_path, verbose=False)
+                result = whisper_model.transcribe(audio_path, verbose=False)
             except Exception as e2:
                 update_status_safe("❌ Transcriptie mislukt")
                 log_debug(f"❌ Transcriptie zonder taal ook mislukt: {e2}")
+                reset_progress_bar()
                 return None
 
         # Controleer resultaat
         if not result or "text" not in result:
             update_status_safe("❌ Geen tekst gevonden")
             log_debug("❌ Geen tekst gevonden in transcriptie resultaat")
+            reset_progress_bar()
             return None
         
         text = result["text"]
@@ -2086,6 +2066,7 @@ def transcribe_audio_with_whisper(audio_path, model_name="base", language="auto"
         if not text:
             update_status_safe("❌ Lege transcriptie resultaat")
             log_debug("❌ Lege transcriptie resultaat")
+            reset_progress_bar()
             return None
 
         # Log segment informatie voor multi-taal debugging
@@ -2103,7 +2084,7 @@ def transcribe_audio_with_whisper(audio_path, model_name="base", language="auto"
         log_debug(f"📝 Tekst lengte: {len(text)} karakters")
         log_debug(f"🌍 Gedetecteerde taal: {result.get('language', 'onbekend')}")
         log_debug(f"📊 Transcriptie preview: {text[:100]}...")
-
+        reset_progress_bar()
         return result
 
     except Exception as e:
@@ -2112,7 +2093,17 @@ def transcribe_audio_with_whisper(audio_path, model_name="base", language="auto"
         log_debug(f"🔍 Exception type: {type(e).__name__}")
         import traceback
         log_debug(f"📋 Stack trace: {traceback.format_exc()}")
+        reset_progress_bar()
         return None
+
+def reset_progress_bar():
+    """Reset de voortgangsbalk naar 0%"""
+    global progress
+    if progress is not None:
+        try:
+            progress['value'] = 0
+        except Exception as e:
+            log_debug(f"❌ Fout bij resetten progressbar: {e}")
 
 
 def split_text_into_chunks(text, max_chunk_size=5000):
@@ -2148,9 +2139,18 @@ def split_text_into_chunks(text, max_chunk_size=5000):
     return chunks
 
 
+# --- Globale schakelaar om vertaling volledig uit te schakelen ---
+ENABLE_TRANSLATION = False  # Zet op False om vertaling uit te schakelen, True om te activeren
+
 def translate_text_to_dutch(text, source_language):
-    """Vertaal tekst naar Nederlands met Google Translate of DeepL"""
+    """Vertaal tekst naar Nederlands met Google Translate of DeepL, of geef origineel terug als vertaling uit staat"""
     try:
+        if not ENABLE_TRANSLATION:
+            log_debug("🔕 Vertaling globaal uitgeschakeld via ENABLE_TRANSLATION.")
+            return text
+        if huidige_vertaler == "geen":
+            log_debug("🔕 Vertaling uitgeschakeld, geef originele tekst terug.")
+            return text  # Geen vertaling uitvoeren
         update_status_safe("🌐 Start vertaling naar Nederlands...")
         log_debug(f"🌐 Start vertaling naar Nederlands...")
         log_debug(f"📝 Bron tekst lengte: {len(text)} karakters")
@@ -2165,7 +2165,7 @@ def translate_text_to_dutch(text, source_language):
             try:
                 update_status_safe("🌐 DeepL vertaling bezig...")
                 # Gebruik DeepL met chunking zoals Google Translate
-                return translate_text_chunks_with_deepl(text, source_language, worker_count)
+                return translate_text_chunks_with_google(text, source_language, worker_count)
             except Exception as e:
                 update_status_safe("❌ DeepL mislukt, probeer Google...")
                 log_debug(f"❌ DeepL vertaling mislukt, fallback naar Google: {e}")
@@ -2224,69 +2224,26 @@ def translate_text_chunks_with_google(text, source_language, worker_count):
         return text
 
 
-def translate_text_chunks_with_deepl(text, source_language, worker_count):
-    """Vertaal tekst in chunks met DeepL"""
-    try:
-        # Split tekst in chunks van 5000 karakters
-        chunks = split_text_into_chunks(text, max_chunk_size=5000)
-        translated_chunks = []
-        
-        update_status_safe(f"🔄 DeepL vertaal {len(chunks)} tekst delen...")
-        log_debug(f"🔄 Start DeepL vertaling van {len(chunks)} chunks...", "log_translation")
-        
-        for i, chunk in enumerate(chunks, 1):
-            try:
-                # Update voortgang elke 3 chunks
-                if i % 3 == 0 or i == len(chunks):
-                    update_status_safe(f"🔄 DeepL vertaal deel {i}/{len(chunks)}...")
-                
-                # Throttle DeepL request
-                deepl_throttle.wait_if_needed(worker_count)
-                
-                import deepl
-                if not deepl_key:
-                    raise ValueError("DeepL API key is niet geconfigureerd")
-                translator = deepl.Translator(deepl_key)
-                result = translator.translate_text(chunk, target_lang="NL")
-                
-                # DeepL kan een enkele TextResult of een lijst teruggeven
-                if isinstance(result, list):
-                    if result and hasattr(result[0], "text"):
-                        translated_chunk = result[0].text
-                    else:
-                        translated_chunk = str(result)
-                elif hasattr(result, "text"):
-                    translated_chunk = result.text
-                else:
-                    translated_chunk = str(result)
-                
-                translated_chunks.append(translated_chunk)
-                log_debug(f"✅ DeepL Chunk {i}/{len(chunks)} vertaald ({len(chunk)} karakters)", "log_translation")
-                
-            except Exception as e:
-                log_debug(f"❌ Fout bij DeepL vertalen chunk {i}: {e}", "log_translation")
-                # Voeg originele chunk toe als fallback
-                translated_chunks.append(chunk)
-        
-        # Combineer alle vertaalde chunks
-        final_translation = ' '.join(translated_chunks)
-        log_debug(f"✅ DeepL vertaling voltooid ({len(chunks)} chunks)")
-        log_debug(f"📝 Vertaalde tekst lengte: {len(final_translation)} karakters")
-        
-        return final_translation
-        
-    except Exception as e:
-        log_debug(f"❌ DeepL chunking mislukt: {e}")
-        return text
-
-
 def create_srt_file(transcriptions, output_path):
     """Maak SRT ondertitel bestand met perfecte synchronisatie"""
     try:
-        log_debug(f"📝 Maak SRT bestand: {os.path.basename(output_path)}")
-        update_status_safe("📝 Maak SRT bestand...")
-
-        with open(output_path, "w", encoding="utf-8") as f:
+        log_debug(f"[SRT] Aangeroepen met output_path: {output_path}")
+        assert output_path, "output_path is leeg of None!"
+        # Zorg dat output_path altijd in een bestaande map staat
+        output_dir = os.path.dirname(output_path)
+        if not os.path.isabs(output_path):
+            output_path = os.path.join(USER_OUTPUT_DIR, output_path)
+            output_dir = os.path.dirname(output_path)
+        log_debug(f"[SRT] Absoluut pad: {output_path}")
+        log_debug(f"[SRT] Bestaat map? {os.path.exists(output_dir)}")
+        log_debug(f"[SRT] Is pad absoluut? {os.path.isabs(output_path)}")
+        os.makedirs(output_dir, exist_ok=True)
+        assert os.path.isabs(output_path), f"Output path is not absolute: {output_path}"
+        assert os.path.exists(output_dir), f"Output dir does not exist: {output_dir}"
+        try:
+            log_debug(f"[SRT] Probeer bestand te openen voor schrijven...")
+            f = open(output_path, "w", encoding="utf-8")
+            assert f is not None, f"Kon bestand niet openen: {output_path}"
             for i, segment in enumerate(transcriptions, 1):
                 # Format timestamps
                 start_time = format_timestamp(segment.get("start", 0))
@@ -2325,25 +2282,32 @@ def create_srt_file(transcriptions, output_path):
                 
                 f.write("\n")
 
-        # Log synchronisatie details
-        if transcriptions:
-            first_seg = transcriptions[0]
-            last_seg = transcriptions[-1]
-            total_duration = last_seg.get("end", 0) - first_seg.get("start", 0)
-            
-            log_debug(f"📊 SRT synchronisatie details:")
-            log_debug(f"  Eerste segment: {first_seg.get('start', 0):.2f}s")
-            log_debug(f"  Laatste segment: {last_seg.get('end', 0):.2f}s")
-            log_debug(f"  Totale duur: {total_duration:.2f}s")
-            log_debug(f"  Aantal segmenten: {len(transcriptions)}")
+            # Log synchronisatie details
+            if transcriptions:
+                first_seg = transcriptions[0]
+                last_seg = transcriptions[-1]
+                total_duration = last_seg.get("end", 0) - first_seg.get("start", 0)
+                
+                log_debug(f"📊 SRT synchronisatie details:")
+                log_debug(f"  Eerste segment: {first_seg.get('start', 0):.2f}s")
+                log_debug(f"  Laatste segment: {last_seg.get('end', 0):.2f}s")
+                log_debug(f"  Totale duur: {total_duration:.2f}s")
+                log_debug(f"  Aantal segmenten: {len(transcriptions)}")
 
-        update_status_safe(f"✅ SRT bestand gemaakt: {len(transcriptions)} segmenten")
-        log_debug(f"✅ SRT bestand gemaakt: {len(transcriptions)} segmenten")
-        return True
-
+            update_status_safe(f"✅ SRT bestand gemaakt: {len(transcriptions)} segmenten")
+            log_debug(f"✅ SRT bestand gemaakt: {len(transcriptions)} segmenten")
+            f.close()
+            log_debug(f"✅ SRT bestand gemaakt: {output_path} ({len(transcriptions)} segmenten)")
+            return True
+        except Exception as e:
+            log_debug(f"❌ Fout bij open/write SRT: {e}")
+            import traceback
+            log_debug(f"📋 Stack trace: {traceback.format_exc()}")
+            return False
     except Exception as e:
-        log_debug(f"❌ Fout bij maken SRT bestand: {e}")
-        update_status_safe("❌ SRT bestand maken mislukt")
+        log_debug(f"❌ Fout bij schrijven SRT: {e}")
+        import traceback
+        log_debug(f"📋 Stack trace: {traceback.format_exc()}")
         return False
 
 
@@ -2374,8 +2338,9 @@ def auto_detect_language(audio_path, model):
 
         # Laad audio
         import whisper
-
-        whisper_model = whisper.load_model(model)
+        import torch
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        whisper_model = whisper.load_model(model, device=device)
 
         # Laad audio
         audio = whisper.load_audio(audio_path)
@@ -2500,7 +2465,9 @@ def detect_mixed_languages(audio_path, model):
 
         # Laad audio
         import whisper
-        whisper_model = whisper.load_model(model)
+        import torch
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        whisper_model = whisper.load_model(model, device=device)
 
         # Laad audio
         audio = whisper.load_audio(audio_path)
@@ -2602,8 +2569,8 @@ def process_video_with_whisper(video_path, model_name="base", language="auto"):
         # Stap 1: Audio extractie
         log_debug("🎵 STAP 1: Audio extractie...")
         audio_path = extract_audio_from_video(video_path)
-        if not audio_path:
-            log_debug("❌ Audio extractie mislukt")
+        if not audio_path or not os.path.exists(audio_path):
+            log_debug("❌ Audio extractie mislukt of bestand bestaat niet na extractie")
             return False
         log_debug("✅ Stap 1 voltooid: Audio geëxtraheerd")
 
@@ -2708,203 +2675,92 @@ def process_video_with_whisper(video_path, model_name="base", language="auto"):
         transcription_result = transcribe_audio_with_whisper(
             audio_path, model_name, language if language else "auto"
         )
-        if not transcription_result:
-            log_debug("❌ Transcriptie mislukt")
+        if not transcription_result or "text" not in transcription_result:
+            log_debug("❌ Transcriptie mislukt of geen tekst gevonden in resultaat")
             return False
         log_debug("✅ Stap 3 voltooid: Transcriptie klaar")
+        # Stop direct als vertaling uit staat
+        if huidige_vertaler == "geen":
+            log_debug("🔕 Vertaling uitgeschakeld, sla SRT op in brontaal.")
+            # SRT in brontaal
+            video_name = os.path.splitext(os.path.basename(video_path))[0]
+            srt_path = os.path.join(os.path.dirname(video_path), f"{video_name}.srt")
+            log_debug(f"📁 SRT output pad: {srt_path}")
+            # Controleer of er segmenten zijn
+            if "segments" in transcription_result and transcription_result["segments"]:
+                transcriptions = []
+                for segment in transcription_result["segments"]:
+                    if isinstance(segment, dict):
+                        seg_text = segment.get("text", "").strip()
+                        seg_start = segment.get("start", 0)
+                        seg_end = segment.get("end", 0)
+                        if seg_text:
+                            transcriptions.append({
+                                "start": seg_start,
+                                "end": seg_end,
+                                "text": seg_text,
+                                "translation": ""  # Geen vertaling
+                            })
+                log_debug(f"📊 {len(transcriptions)} segmenten voor originele SRT.")
+            else:
+                log_debug("⚠️ Geen segmenten gevonden, gebruik fallback")
+                original_text = transcription_result.get("text", "")
+                if not original_text:
+                    log_debug("❌ Geen tekst beschikbaar voor fallback SRT.")
+                    return False
+                transcriptions = [
+                    {
+                        "start": 0,
+                        "end": 999999,  # Hele video
+                        "text": original_text,
+                        "translation": ""
+                    }
+                ]
+            # Sla SRT op in brontaal
+            success = create_srt_file(transcriptions, srt_path)
+            if not success:
+                log_debug("❌ SRT bestand maken mislukt (brontaal)")
+                messagebox.showerror("❌ Fout", "Kon SRT bestand niet maken")
+                return False
+            return success
 
-        # Stap 4: Vertaling naar Nederlands
-        log_debug("🌐 STAP 4: Vertaling naar Nederlands...")
-        original_text = transcription_result["text"]
-        translated_text = translate_text_to_dutch(
-            original_text, transcription_result["language"]
-        )
-        log_debug("✅ Stap 4 voltooid: Vertaling klaar")
-
-        # Stap 5: SRT bestand maken
-        log_debug("📝 STAP 5: SRT bestand maken...")
+        # Stap 4: SRT bestand maken in originele taal
+        log_debug("📝 STAP 4: SRT bestand maken in originele taal...")
         video_name = os.path.splitext(os.path.basename(video_path))[0]
         srt_path = os.path.join(os.path.dirname(video_path), f"{video_name}.srt")
         log_debug(f"📁 SRT output pad: {srt_path}")
-
-        # Maak transcriptie data voor SRT met echte segmenten
         if "segments" in transcription_result and transcription_result["segments"]:
-            # Gebruik echte Whisper segmenten voor perfecte synchronisatie
             transcriptions = []
             for segment in transcription_result["segments"]:
                 if isinstance(segment, dict):
                     seg_text = segment.get("text", "").strip()
                     seg_start = segment.get("start", 0)
                     seg_end = segment.get("end", 0)
-                    
-                    if seg_text:  # Alleen segmenten met tekst
-                        # Vertaal dit segment
-                        seg_translation = translate_text_to_dutch(seg_text, transcription_result.get("language", "en"))
-                        
+                    if seg_text:
                         transcriptions.append({
                             "start": seg_start,
                             "end": seg_end,
                             "text": seg_text,
-                            "translation": seg_translation,
+                            "translation": ""  # Geen vertaling meer
                         })
-            
-            log_debug(f"📊 Gebruik {len(transcriptions)} echte segmenten voor SRT")
+            log_debug(f"📊 {len(transcriptions)} segmenten voor originele SRT.")
         else:
-            # Fallback naar één segment als geen segmenten beschikbaar zijn
             log_debug("⚠️ Geen segmenten gevonden, gebruik fallback")
+            original_text = transcription_result.get("text", "")
             transcriptions = [
                 {
                     "start": 0,
                     "end": 999999,  # Hele video
                     "text": original_text,
-                    "translation": translated_text,
+                    "translation": ""
                 }
             ]
-
-        # Controleer ondertitel type configuratie
-        log_debug(f"📺 Ondertitel type: {subtitle_type}")
-        
-        if subtitle_type == "softcoded":
-            # Softcoded: Maak alleen SRT bestand met alleen Nederlandse ondertitels
-            log_debug("🎯 Softcoded: Alleen Nederlandse ondertitels")
-            
-            # Filter alleen Nederlandse ondertitels
-            softcoded_transcriptions = []
-            for segment in transcriptions:
-                translated_text = segment.get("translation", "").strip()
-                if translated_text:  # Alleen segmenten met Nederlandse vertaling
-                    softcoded_transcriptions.append({
-                        "start": segment.get("start", 0),
-                        "end": segment.get("end", 0),
-                        "text": translated_text,  # Alleen Nederlandse tekst
-                        "translation": ""  # Leeg voor softcoded
-                    })
-            
-            log_debug(f"🎯 Softcoded transcripties: {len(softcoded_transcriptions)} Nederlandse segmenten")
-            success = create_srt_file(softcoded_transcriptions, srt_path)
-            
-            if success:
-                srt_size = os.path.getsize(srt_path) / 1024  # KB
-                log_debug(
-                    f"✅ Softcoded ondertitels gemaakt: {os.path.basename(srt_path)} ({srt_size:.1f} KB)"
-                )
-                log_debug("=" * 60)
-                log_debug("🎉 VIDEO VERWERKING SUCCESVOL VOLTOOID!")
-                log_debug("=" * 60)
-                # Pop-up venster verwijderd - gebruiker kan status zien in log en voltooide lijst
-            else:
-                log_debug("❌ SRT bestand maken mislukt")
-                messagebox.showerror("❌ Fout", "Kon SRT bestand niet maken")
-                
-        elif subtitle_type == "hardcoded":
-            # Hardcoded: Maak video met ingebedde ondertitels
-            log_debug("🎬 Hardcoded ondertitels worden gemaakt...")
-            update_status_safe("🎬 Maak video met ingebedde ondertitels...")
-            
-            # Controleer hardcoded taal optie
-            log_debug(f"🎬 Hardcoded taal optie: {hardcoded_language}")
-            
-            # Maak transcripties op basis van taal optie
-            if hardcoded_language == "dutch_only":
-                # Alleen Nederlandse ondertitels
-                hardcoded_transcriptions = []
-                for segment in transcriptions:
-                    if segment.get("translation", "").strip():
-                        hardcoded_transcriptions.append({
-                            "start": segment.get("start", 0),
-                            "end": segment.get("end", 0),
-                            "text": segment.get("translation", "").strip(),
-                            "translation": ""  # Leeg voor alleen Nederlands
-                        })
-                log_debug(f"🎬 Alleen Nederlandse ondertitels: {len(hardcoded_transcriptions)} segmenten")
-            else:  # both_languages
-                # Beide talen (origineel + Nederlands)
-                hardcoded_transcriptions = []
-                for segment in transcriptions:
-                    original_text = segment.get("text", "").strip()
-                    translated_text = segment.get("translation", "").strip()
-                    
-                    if original_text and translated_text:
-                        # Combineer beide talen
-                        combined_text = f"{original_text}\n{translated_text}"
-                        hardcoded_transcriptions.append({
-                            "start": segment.get("start", 0),
-                            "end": segment.get("end", 0),
-                            "text": combined_text,
-                            "translation": ""
-                        })
-                log_debug(f"🎬 Beide talen: {len(hardcoded_transcriptions)} segmenten")
-            
-            # Eerst SRT bestand maken
-            temp_srt_path = srt_path.replace(".srt", "_temp.srt")
-            success = create_srt_file(hardcoded_transcriptions, temp_srt_path)
-            
-            if success:
-                # Maak video met ingebedde ondertitels
-                output_video_path = video_path.replace(".mp4", "_subtitled.mp4")
-                output_video_path = output_video_path.replace(".avi", "_subtitled.avi")
-                output_video_path = output_video_path.replace(".mov", "_subtitled.mov")
-                
-                # Gebruik FFmpeg om ondertitels in te bedden
-                try:
-                    ffmpeg_cmd = [
-                        "ffmpeg", "-i", video_path,
-                        "-vf", f"subtitles={temp_srt_path}:force_style='FontSize=24,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=3'",
-                        "-c:a", "copy",
-                        "-y", output_video_path
-                    ]
-                    
-                    log_debug(f"🎬 FFmpeg commando: {' '.join(ffmpeg_cmd)}")
-                    
-                    result = run_and_track_subprocess(
-                        ffmpeg_cmd,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                        timeout=300,
-                        creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0
-                    )
-                    
-                    if result.returncode == 0:
-                        # Verwijder tijdelijke SRT
-                        try:
-                            os.remove(temp_srt_path)
-                            log_debug("🧹 Tijdelijke SRT verwijderd")
-                        except:
-                            pass
-                        
-                        video_size = os.path.getsize(output_video_path) / (1024 * 1024)  # MB
-                        log_debug(
-                            f"✅ Hardcoded video gemaakt: {os.path.basename(output_video_path)} ({video_size:.1f} MB)"
-                        )
-                        log_debug("=" * 60)
-                        log_debug("🎉 VIDEO VERWERKING SUCCESVOL VOLTOOID!")
-                        log_debug("=" * 60)
-                        # Pop-up venster verwijderd - gebruiker kan status zien in log en voltooide lijst
-                    else:
-                        log_debug(f"❌ FFmpeg fout: {result.stderr}")
-                        messagebox.showerror("❌ Fout", f"Kon video niet maken met ondertitels:\n{result.stderr}")
-                        
-                except subprocess.TimeoutExpired:
-                    log_debug("❌ FFmpeg timeout")
-                    messagebox.showerror("❌ Fout", "Video maken duurde te lang (>5 minuten)")
-                except Exception as e:
-                    log_debug(f"❌ FFmpeg fout: {e}")
-                    messagebox.showerror("❌ Fout", f"Kon video niet maken met ondertitels:\n{e}")
-            else:
-                log_debug("❌ Tijdelijke SRT bestand maken mislukt")
-                messagebox.showerror("❌ Fout", "Kon tijdelijke SRT bestand niet maken")
-        else:
-            log_debug(f"❌ Onbekend ondertitel type: {subtitle_type}")
-            messagebox.showerror("❌ Fout", f"Onbekend ondertitel type: {subtitle_type}")
-
-        # Cleanup
-        try:
-            os.remove(audio_path)
-            log_debug("🧹 Tijdelijke audio bestand verwijderd")
-        except Exception as e:
-            log_debug(f"⚠️ Kon audio bestand niet verwijderen: {e}")
-
+        # Sla SRT op in originele taal
+        success = create_srt_file(transcriptions, srt_path)
+        if not success:
+            log_debug("❌ SRT bestand maken mislukt (originele taal)")
+            messagebox.showerror("❌ Fout", "Kon SRT bestand niet maken")
+            return False
         return success
 
     except Exception as e:
@@ -2922,7 +2778,12 @@ def process_video_with_whisper(video_path, model_name="base", language="auto"):
 
 
 def start_batch_verwerking():
-    """Start de batch verwerking"""
+    global processing_active
+    if processing_active:
+        log_debug("⏳ Verwerking is al bezig, start wordt genegeerd.")
+        return
+    processing_active = True
+    log_debug("🔒 Verwerking gestart, startknop geblokkeerd.")
     log_debug("=" * 60)
     log_debug("🚀 START: Batch verwerking")
     log_debug("=" * 60)
@@ -2952,48 +2813,58 @@ def start_batch_verwerking():
     def process_thread():
         try:
             log_debug("🔄 Start verwerking in thread...")
-            
-            # Memory optimalisatie voor start
             optimize_memory_usage()
-            
-            # Event-driven status updates voor snellere reacties
             def update_progress_event(progress_value):
                 schedule_immediate_update(lambda: update_progress_safe(progress_value))
-
             def update_status_event(message):
                 schedule_priority_update(lambda: update_status_safe(message))
-            
-            # Open live log als die nog niet open is - UITGESCHAKELD
-            # if log_window is None:
-            #     safe_after(root, 100, show_live_log)
             success = process_video_with_whisper(selected_video, model_name, language)
             if success:
                 log_debug("✅ Verwerking succesvol, update UI...")
-                # Voeg toe aan voltooide lijst
                 if listbox_voltooid is not None:
                     listbox_voltooid.insert(tk.END, safe_basename(selected_video))
                     voltooid_lijst.append(selected_video)
                     log_debug("✅ Toegevoegd aan voltooide lijst")
-                # Verwijder uit te verwerken lijst
                 if listbox_nog is not None and selected_video in verwerk_lijst:
                     index = verwerk_lijst.index(selected_video)
                     verwerk_lijst.pop(index)
                     listbox_nog.delete(index)
                     log_debug("✅ Verwijderd uit te verwerken lijst")
                 log_debug("🎉 Batch verwerking succesvol voltooid!")
+                reset_progress_bar()
             else:
-                log_debug("❌ Batch verwerking mislukt")
+                log_debug("❌ Batch verwerking mislukt - bestand wordt gemarkeerd als mislukt")
+                global listbox_mislukt
+                if 'listbox_mislukt' in globals() and listbox_mislukt is not None:
+                    listbox_mislukt.insert(tk.END, safe_basename(selected_video))
+                    mislukte_lijst.append(selected_video)
+                if listbox_nog is not None and selected_video in verwerk_lijst:
+                    index = verwerk_lijst.index(selected_video)
+                    verwerk_lijst.pop(index)
+                    listbox_nog.delete(index)
+                log_debug("❌ Bestand toegevoegd aan mislukte lijst")
+                reset_progress_bar()
         except Exception as e:
             log_debug(f"❌ FOUT in verwerking thread: {e}")
             log_debug(f"🔍 Exception type: {type(e).__name__}")
             import traceback
             log_debug(f"📋 Stack trace: {traceback.format_exc()}")
+            # Voeg bestand toe aan mislukte lijst bij exceptie
+            if listbox_mislukt is not None and selected_video is not None:
+                listbox_mislukt.insert(tk.END, safe_basename(selected_video))
+                mislukte_lijst.append(selected_video)
+            if listbox_nog is not None and selected_video in verwerk_lijst:
+                index = verwerk_lijst.index(selected_video)
+                verwerk_lijst.pop(index)
+                listbox_nog.delete(index)
+            log_debug("❌ Bestand toegevoegd aan mislukte lijst na exceptie")
         finally:
-            # Memory optimalisatie na verwerking
             optimize_memory_usage()
-            # Ontgrendel interface na verwerking (succesvol of niet)
             if root is not None:
                 root.after(0, unblock_interface_after_processing)
+            global processing_active
+            processing_active = False
+            log_debug("🔓 Verwerking afgerond, startknop weer actief.")
 
     # Blokkeer interface tijdens verwerking
     block_interface_during_processing()
@@ -3015,57 +2886,38 @@ def start_batch_verwerking():
 
 
 def verwijder_geselecteerd_bestand():
-    """Verwijder het geselecteerde bestand uit de lijst"""
+    """Verwijder het geselecteerde bestand uit de lijst, behalve als het bestand in verwerking is."""
     global verwerk_lijst, listbox_nog, processing_active, selected_video
-    
     if listbox_nog is not None:
         selection = listbox_nog.curselection()
         if selection:
             index = selection[0]
             bestandsnaam = listbox_nog.get(index)
-
-            # Zoek het volledige pad van het bestand
             for i, pad in enumerate(verwerk_lijst):
                 if os.path.basename(pad) == bestandsnaam:
-                    # Controleer of dit het bestand is dat momenteel verwerkt wordt
+                    # Bescherm huidig bestand tegen verwijderen
                     if processing_active and pad == selected_video:
                         messagebox.showwarning(
                             "Bestand in verwerking", 
-                            f"'{bestandsnaam}' wordt momenteel verwerkt.\n\n"
-                            "Je kunt dit bestand niet verwijderen tot de verwerking klaar is."
+                            f"'{bestandsnaam}' wordt momenteel verwerkt.\n\nJe kunt dit bestand niet verwijderen tot de verwerking klaar is."
                         )
                         return
-                    
                     # Verwijder uit de lijst en listbox
                     verwerk_lijst.pop(i)
                     listbox_nog.delete(index)
-                    
-                    # Wis de selectie en update de info label
                     listbox_nog.selection_clear(0, tk.END)
                     if info_label is not None:
-                        # Geoptimaliseerde kleur voor "geen bestand" status
                         huidig_thema = thema_var.get() if thema_var is not None else "dark"
-                        if huidig_thema == "dark":
-                            text_color = "#cccccc"  # Lichtgrijze tekst voor dark theme
-                        else:
-                            text_color = "gray"  # Grijze tekst voor andere thema's
+                        text_color = "#cccccc" if huidig_thema == "dark" else "gray"
                         info_label.config(text="📄 Geen video gekozen", fg=text_color)
-                    
                     log_debug(f"✅ Bestand verwijderd: {bestandsnaam}")
                     return
-
             # Als het bestand niet gevonden wordt in verwerk_lijst
             listbox_nog.delete(index)
-            
-            # Wis de selectie en update de info label
             listbox_nog.selection_clear(0, tk.END)
             if info_label is not None:
-                # Geoptimaliseerde kleur voor "geen bestand" status
                 huidig_thema = thema_var.get() if thema_var is not None else "dark"
-                if huidig_thema == "dark":
-                    text_color = "#cccccc"  # Lichtgrijze tekst voor dark theme
-                else:
-                    text_color = "gray"  # Grijze tekst voor andere thema's
+                text_color = "#cccccc" if huidig_thema == "dark" else "gray"
                 info_label.config(text="📄 Geen video gekozen", fg=text_color)
     else:
         messagebox.showwarning(
@@ -3130,9 +2982,7 @@ def verwijder_hele_lijst():
 
 def kill_switch():
     """Stop het hele verwerkingsproces direct"""
-    global processing_active, parallel_processor
-
-    # Toon bevestigingspopup
+    global processing_active, parallel_processor, processing_cancelled
     bevestiging = messagebox.askyesno(
         "Kill Switch",
         "Weet je zeker dat je het hele verwerkingsproces wilt stoppen?\n\n"
@@ -3143,12 +2993,10 @@ def kill_switch():
         "Deze actie kan niet ongedaan worden gemaakt.",
         icon="warning",
     )
-
     if bevestiging:
         try:
-            # Stop alle verwerking
             processing_active = False
-
+            processing_cancelled = True
             # Stop alle actieve subprocessen
             for proc in list(ACTIVE_SUBPROCESSES):
                 try:
@@ -3165,36 +3013,23 @@ def kill_switch():
                 except Exception:
                     pass
             # Stop parallel processor als deze bestaat
-            if "parallel_processor" in globals() and parallel_processor is not None:
-                if (
-                    hasattr(parallel_processor, "executor")
-                    and parallel_processor.executor
-                ):
-                    parallel_processor.executor.shutdown(wait=False)
-                    print("[KILL_SWITCH] Parallel processor gestopt")
-
-            # Reset progress
-            if "progress" in globals() and progress is not None:
-                progress["value"] = 0
-
-            # Ontgrendel interface
-            unblock_interface_after_processing()
-            
-            # Update status
-            if "status_label" in globals() and status_label is not None:
-                status_label.config(text="❌ Verwerking gestopt door gebruiker")
-
-            # Ruim tijdelijke bestanden op
-            cleanup_temp_files()
-
-            messagebox.showinfo(
-                "Kill Switch",
-                "Het verwerkingsproces is gestopt.\n\nAlle taken zijn beëindigd en tijdelijke bestanden zijn opgeruimd.",
-            )
-
+            if parallel_processor is not None:
+                try:
+                    if hasattr(parallel_processor, 'executor') and parallel_processor.executor is not None:
+                        parallel_processor.executor.shutdown(wait=False, cancel_futures=True)
+                except Exception:
+                    pass
+            # Verwijder tijdelijke audio-bestanden
+            try:
+                import shutil
+                if os.path.exists(TEMP):
+                    shutil.rmtree(TEMP)
+                    log_debug("🧹 Tijdelijke audio-map verwijderd na kill switch")
+            except Exception as e:
+                log_debug(f"❌ Fout bij verwijderen tijdelijke bestanden: {e}")
+            log_debug("⏹️ Kill switch uitgevoerd: alles gestopt en opgeruimd")
         except Exception as e:
-            print(f"[KILL_SWITCH] Fout bij stoppen: {e}")
-            messagebox.showerror("Fout", f"Er ging iets mis bij het stoppen:\n{e}")
+            log_debug(f"❌ Fout bij kill switch: {e}")
 
 
 def create_input_panel():
@@ -3490,7 +3325,7 @@ def pas_thema_toe(naam):
 
 def create_processing_panel():
     """Maak het verwerking paneel met help knoppen"""
-    global info_label, status_label, progress, start_button, listbox_nog, listbox_voltooid
+    global info_label, status_label, progress, start_button, listbox_nog, listbox_voltooid, listbox_mislukt
 
     # 📄 Info rechts: gekozen video
     info_label = tk.Label(
@@ -3599,6 +3434,15 @@ def create_processing_panel():
         right_panel, height=5, font=("Segoe UI", 10), selectmode=tk.SINGLE
     )
     listbox_voltooid.grid(row=8, column=0, sticky="we", pady=(0, 10))
+
+    # ❌ Mislukte bestanden
+    tk.Label(
+        right_panel, text="❌ Mislukte bestanden:", font=("Segoe UI", 10, "bold")
+    ).grid(row=9, column=0, sticky="w", pady=(10, 5))
+    listbox_mislukt = tk.Listbox(
+        right_panel, height=5, font=("Segoe UI", 10), selectmode=tk.SINGLE
+    )
+    listbox_mislukt.grid(row=10, column=0, sticky="we", pady=(0, 10))
 
 
 # Update de main sectie
@@ -3776,9 +3620,10 @@ def update_time_estimate_safe(completed_blocks, total_blocks, start_time):
         log_debug(f"❌ Fout bij tijdschatting update: {e}")
 
 
-# --- Lijsten voor te verwerken en voltooide bestanden ---
+# --- Lijsten voor te verwerken, voltooide en mislukte bestanden ---
 verwerk_lijst = []
 voltooid_lijst = []
+mislukte_lijst = []
 
 
 def is_video_bestand(pad):
@@ -4234,11 +4079,13 @@ def show_configuration_window():
     tk.Label(
         translator_config_frame, text="Standaard Vertaler:", font=("Arial", 9), bg=frame_bg, fg=frame_fg
     ).pack(anchor="w", padx=10, pady=(5, 2))
-    translator_var = tk.StringVar(value=huidige_vertaler)
+    translator_default = huidige_vertaler if huidige_vertaler in ["geen", "google", "deepl"] else "geen"
+    translator_var = tk.StringVar(value=translator_default)
     translator_combo = tk.OptionMenu(
         translator_config_frame,
         translator_var,
-        translator_var.get(),
+        "geen",
+        "google",
         "deepl"
     )
     # Geoptimaliseerde dropdown styling voor translator
@@ -4685,7 +4532,7 @@ def show_configuration_window():
     button_frame.pack(fill="x", padx=10, pady=(0, 10))
 
     def save_configuration():
-        global config_window, deepl_key, huidige_vertaler, logging_config, subtitle_type
+        global config_window, logging_config, subtitle_type, huidige_vertaler
         # Controleer of deepl_key_var bestaat en een get() methode heeft
         if "deepl_key_var" in globals() and hasattr(deepl_key_var, "get"):
             deepl_key = safe_get(deepl_key_var)
@@ -4702,8 +4549,7 @@ def show_configuration_window():
                 "DeepL geselecteerd maar geen API key ingevoerd.\nVoer eerst een geldige DeepL API key in.",
             )
             return
-        huidige_vertaler = nieuwe_vertaler
-        
+        huidige_vertaler = nieuwe_vertaler  # update global direct
         # Update ondertitel type
         nieuwe_subtitle_type = subtitle_type_var.get()
         if nieuwe_subtitle_type == "Softcoded (SRT bestand)":
@@ -4728,7 +4574,6 @@ def show_configuration_window():
                 logging_config[key] = var.get()
         
         config_data = {
-            "deepl_key": deepl_key,
             "translator": huidige_vertaler,
             "huidige_vertaler": huidige_vertaler,
             "model_selection": model_selection_var.get() if model_selection_var is not None and hasattr(model_selection_var, "get") else "",
@@ -4800,7 +4645,8 @@ def voeg_tools_menu_toe():
     assert (
         menubalk is not None
     ), "menubalk moet geïnitialiseerd zijn voordat het Tools-menu wordt toegevoegd"
-    
+    # Verwijder eerst alle bestaande menu's om dubbele menu's te voorkomen
+    menubalk.delete(0, 'end')
     # Lazy loading functies voor snellere menubalk
     def lazy_show_config():
         # Snelle check voor bestaand venster
@@ -4813,16 +4659,12 @@ def voeg_tools_menu_toe():
                 pass
         # Alleen laden als nodig
         show_configuration_window()
-    
     def lazy_show_log():
         show_live_log()
-    
     def lazy_cuda_test():
         test_cuda_performance()
-    
     def lazy_cuda_help():
         show_cuda_install_instructions()
-    
     def show_about():
         messagebox.showinfo(
             "Over Magic Time Studio",
@@ -4831,10 +4673,8 @@ def voeg_tools_menu_toe():
             "met Whisper AI en vertaling naar het Nederlands.\n\n"
             "Ontwikkeld door Bjorn Mertens"
         )
-    
     # Geoptimaliseerde menu structuur met lazy loading
     current_font_size = font_size if 'font_size' in globals() else 9
-    
     tools_menu = tk.Menu(menubalk, tearoff=False, font=("Arial", current_font_size))
     tools_menu.add_command(label="⚙️ Configuratie", command=lazy_show_config)
     tools_menu.add_command(label="📋 Live Log", command=lazy_show_log)
@@ -4842,12 +4682,10 @@ def voeg_tools_menu_toe():
     tools_menu.add_command(label="🎮 CUDA Test", command=lazy_cuda_test)
     tools_menu.add_command(label="📋 CUDA Help", command=lazy_cuda_help)
     menubalk.add_cascade(label="🔧 Tools", menu=tools_menu)
-    
     # Help menu
     help_menu = tk.Menu(menubalk, tearoff=False, font=("Arial", current_font_size))
     help_menu.add_command(label="📖 Over", command=show_about)
     menubalk.add_cascade(label="❓ Help", menu=help_menu)
-    
     # Thema menu met directe functie calls
     theme_menu = tk.Menu(menubalk, tearoff=False, font=("Arial", current_font_size))
     theme_menu.add_command(label="🌙 Dark", command=lambda: pas_thema_toe("dark"))
@@ -4855,13 +4693,11 @@ def voeg_tools_menu_toe():
     theme_menu.add_command(label="🌊 Blue", command=lambda: pas_thema_toe("blue"))
     theme_menu.add_command(label="🌿 Green", command=lambda: pas_thema_toe("green"))
     menubalk.add_cascade(label="🎨 Thema's", menu=theme_menu)
-    
     # Pas lettertype toe op menubalk (alleen bij eerste aanmaak)
     if 'font_size' in globals() and font_size is not None:
-        # Voeg een flag toe om te voorkomen dat we in een loop terechtkomen
         if not hasattr(voeg_tools_menu_toe, '_font_applied'):
             voeg_tools_menu_toe._font_applied = True
-            apply_font_size_to_interface(font_size)
+            # apply_font_size_to_interface(font_size)  # NIET opnieuw menubalk aanmaken
             voeg_tools_menu_toe._font_applied = False
 
 
@@ -5714,8 +5550,14 @@ def test_cuda_performance():
     """Test CUDA vs CPU performance voor Whisper"""
     try:
         log_debug("🧪 START: CUDA vs CPU Performance Test")
-        
+        import sys
         import torch
+        log_debug(f"PYTHON: {sys.executable}")
+        log_debug(f"TORCH: {torch.__version__}, CUDA versie: {torch.version.cuda}, is_available: {torch.cuda.is_available()}")
+        try:
+            log_debug(f"GPU naam: {torch.cuda.get_device_name(0)}")
+        except Exception as e:
+            log_debug(f"Fout bij ophalen GPU naam: {e}")
         import whisper
         import time
         
@@ -5743,8 +5585,8 @@ def test_cuda_performance():
         # CPU test
         log_debug("🔄 CPU test gestart...")
         device = "cpu"
-        model = whisper.load_model(model_name)
-        model = model.to(device)
+        model = whisper.load_model(model_name, device=device)
+        # model = model.to(device)  # niet meer nodig, device is al goed
         
         # Maak dummy audio voor test
         import numpy as np
@@ -5759,8 +5601,8 @@ def test_cuda_performance():
         # CUDA test
         log_debug("🔄 CUDA test gestart...")
         device = "cuda"
-        model = whisper.load_model(model_name)
-        model = model.to(device)
+        model = whisper.load_model(model_name, device=device)
+        # model = model.to(device)  # niet meer nodig, device is al goed
         
         start_time = time.time()
         result = model.transcribe(dummy_audio, verbose=False)
@@ -5877,12 +5719,32 @@ except ImportError:
     PSUTIL_AVAILABLE = False
 
 def run_and_track_subprocess(cmd, **kwargs):
-    """Start een subprocess, voeg toe aan ACTIVE_SUBPROCESSES, en wacht tot klaar."""
+    """Start een subprocess, voeg toe aan ACTIVE_SUBPROCESSES, en wacht tot klaar. Logt altijd het commando en pad. Voorkomt systeemcommando's zonder pad."""
     import subprocess
-    proc = subprocess.Popen(cmd, **kwargs)
+    # Haal timeout uit kwargs zodat deze niet naar Popen gaat
+    timeout = kwargs.pop('timeout', None)
+    # --- Windows startupinfo om tray vensters te voorkomen ---
+    if os.name == 'nt' and 'startupinfo' not in kwargs:
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        kwargs['startupinfo'] = startupinfo
+    log_debug(f"[SUBPROCESS] Start: {' '.join(str(c) for c in cmd)}")
+    if isinstance(cmd, list) and len(cmd) > 0:
+        exe_path = cmd[0]
+        log_debug(f"[SUBPROCESS] Executable: {exe_path} (bestaat: {os.path.exists(exe_path)})")
+        # Voorkom systeemcommando's zonder pad (behalve python, want dat is oké)
+        if exe_path.lower() not in ("python", "python.exe") and not os.path.isabs(exe_path):
+            log_debug(f"❌ Executable zonder absoluut pad: {exe_path}. ABORT.")
+            raise FileNotFoundError(f"Executable zonder absoluut pad: {exe_path}")
+    try:
+        proc = subprocess.Popen(cmd, **kwargs)
+    except Exception as e:
+        log_debug(f"[SUBPROCESS] FOUT bij starten: {e}")
+        log_debug(f"[SUBPROCESS] kwargs: {kwargs}")
+        raise
     ACTIVE_SUBPROCESSES.append(proc)
     try:
-        out, err = proc.communicate(timeout=kwargs.get('timeout'))
+        out, err = proc.communicate(timeout=timeout)
         returncode = proc.returncode
     except Exception as e:
         # Bij uitzondering killen
@@ -5899,6 +5761,36 @@ def run_and_track_subprocess(cmd, **kwargs):
         if proc in ACTIVE_SUBPROCESSES:
             ACTIVE_SUBPROCESSES.remove(proc)
     return subprocess.CompletedProcess(cmd, returncode, out, err)
+
+# Globale exception handler voor uncaught exceptions
+import sys
+import traceback
+
+def handle_exception(exc_type, exc_value, exc_traceback):
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    log_path = os.path.join(BASE_DIR, "MagicTime_crash_log.txt")
+    msg = f"UNCAUGHT EXCEPTION: {exc_value}\n{''.join(traceback.format_exception(exc_type, exc_value, exc_traceback))}"
+    try:
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write("\n=== UNCAUGHT EXCEPTION ===\n")
+            f.write(f"Type: {exc_type.__name__}\n")
+            f.write(f"Value: {exc_value}\n")
+            f.write(''.join(traceback.format_exception(exc_type, exc_value, exc_traceback)))
+            f.write("\n========================\n")
+    except Exception as e:
+        pass  # Stil falen
+    # Log ook naar het live log venster
+    try:
+        log_debug(msg)
+    except Exception:
+        pass
+    # Optioneel: print ook naar stderr voor debug
+    print(f"[CRASH] {exc_type.__name__}: {exc_value}")
+    traceback.print_exception(exc_type, exc_value, exc_traceback)
+
+sys.excepthook = handle_exception
 
 if __name__ == "__main__":
     try:
@@ -5970,14 +5862,8 @@ if __name__ == "__main__":
         setup_ui()
         
         update_loading_status("Toevoegen van menu's...")
-        # Initialiseer menubalk expliciet
+        # Alleen menu-items toevoegen, niet opnieuw menubalk aanmaken
         if 'menubalk' in globals() and menubalk is not None:
-            root.config(menu=menubalk)
-            voeg_tools_menu_toe()
-        else:
-            # Fallback: maak menubalk aan als deze niet bestaat
-            menubalk = tk.Menu(root)
-            root.config(menu=menubalk)
             voeg_tools_menu_toe()
         
         # Memory optimalisatie na setup
