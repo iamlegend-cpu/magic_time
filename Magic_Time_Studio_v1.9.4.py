@@ -1236,7 +1236,9 @@ def load_configuration():
             with open(config_path, "r", encoding="utf-8") as f:
                 config = json.load(f)
             deepl_key = config.get("deepl_key", None)
-            huidige_vertaler = config.get("huidige_vertaler", config.get("translator", "geen"))  # default is 'geen'
+            # Forceer altijd 'geen' als vertaler bij opstarten
+            huidige_vertaler = "geen"
+            log_debug(f"[DEBUG] Vertaler geforceerd op 'geen' bij opstarten, ongeacht config.")
             subtitle_type = config.get("subtitle_type", "softcoded")
             hardcoded_language = config.get("hardcoded_language", "dutch_only")
             font_size = config.get("font_size", 9)
@@ -1255,6 +1257,7 @@ def load_configuration():
         subtitle_type = "softcoded"
         hardcoded_language = "dutch_only"
         font_size = 9
+    log_debug(f"[DEBUG] Na load_configuration: huidige_vertaler = {huidige_vertaler}")
 
 # Laad configuratie
 load_configuration()
@@ -1270,7 +1273,7 @@ def sla_config_op():
             "huidige_vertaler": huidige_vertaler,  # Voor compatibiliteit
             "logging_config": logging_config,
         }
-        config_path = os.path.join(BASE_DIR, "config.json")
+        config_path = os.path.join(get_user_data_dir(), "config.json")
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2)
         log_debug(f"💾 Configuratie opgeslagen - Vertaler: {huidige_vertaler}")
@@ -3669,16 +3672,28 @@ def voeg_bestand_toe_pad(pad):
 
 
 def voeg_map_toe_paden(map_pad):
+    global info_label, thema_var
     if map_pad and os.path.isdir(map_pad):
         video_count = 0
+        eerste_video = None
         for fname in os.listdir(map_pad):
             fpath = os.path.join(map_pad, fname)
             if os.path.isfile(fpath) and is_video_bestand(fpath):
                 voeg_bestand_toe_pad(fpath)
                 video_count += 1
+                if eerste_video is None:
+                    eerste_video = fpath
 
         # Toon een melding als er videobestanden zijn gevonden
         if video_count > 0:
+            # Update info_label naar eerste gevonden videobestand
+            if info_label is not None and eerste_video is not None:
+                huidig_thema = thema_var.get() if thema_var is not None else "dark"
+                if huidig_thema == "dark":
+                    text_color = "white"
+                else:
+                    text_color = "#2c3e50"
+                info_label.config(text=f"📄 {os.path.basename(eerste_video)}", fg=text_color)
             messagebox.showinfo(
                 "Videobestanden toegevoegd",
                 f"{video_count} videobestand(en) toegevoegd aan de verwerkingslijst.",
@@ -4550,6 +4565,7 @@ def show_configuration_window():
             )
             return
         huidige_vertaler = nieuwe_vertaler  # update global direct
+        log_debug(f"[DEBUG] Bij opslaan config: huidige_vertaler = {huidige_vertaler}")
         # Update ondertitel type
         nieuwe_subtitle_type = subtitle_type_var.get()
         if nieuwe_subtitle_type == "Softcoded (SRT bestand)":
