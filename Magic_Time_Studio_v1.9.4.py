@@ -2791,76 +2791,43 @@ def start_batch_verwerking():
     log_debug("🚀 START: Batch verwerking")
     log_debug("=" * 60)
 
-    if not selected_video:
-        log_debug("❌ Geen video geselecteerd")
-        messagebox.showwarning("⚠️", "Kies eerst een videobestand.")
+    # Verzamel alle paden uit de listbox/verwerk_lijst
+    if not verwerk_lijst or (listbox_nog is not None and listbox_nog.size() == 0):
+        log_debug("❌ Geen bestanden in de verwerkingslijst")
+        messagebox.showwarning("⚠️", "Er staan geen videobestanden in de verwerkingslijst.")
+        processing_active = False
         return
 
-    log_debug(f"📁 Geselecteerde video: {selected_video}")
-    log_debug(f"📁 Video naam: {os.path.basename(selected_video)}")
-
-    # Controleer of bestand bestaat
-    if not os.path.exists(selected_video):
-        log_debug(f"❌ Video bestand bestaat niet: {selected_video}")
-        messagebox.showerror("❌ Fout", "Video bestand bestaat niet!")
-        return
-
-    # Haal instellingen op
-    model_name = "base"  # Standaard model
-    language = "auto"  # Auto detectie
-
-    log_debug(f"🤖 Model: {model_name}")
-    log_debug(f"🌍 Taal: {language}")
-
-    # Start verwerking in aparte thread met event-driven updates
     def process_thread():
         try:
-            log_debug("🔄 Start verwerking in thread...")
+            log_debug("🔄 Start batchverwerking in thread...")
             optimize_memory_usage()
-            def update_progress_event(progress_value):
-                schedule_immediate_update(lambda: update_progress_safe(progress_value))
-            def update_status_event(message):
-                schedule_priority_update(lambda: update_status_safe(message))
-            success = process_video_with_whisper(selected_video, model_name, language)
-            if success:
-                log_debug("✅ Verwerking succesvol, update UI...")
-                if listbox_voltooid is not None:
-                    listbox_voltooid.insert(tk.END, safe_basename(selected_video))
-                    voltooid_lijst.append(selected_video)
-                    log_debug("✅ Toegevoegd aan voltooide lijst")
-                if listbox_nog is not None and selected_video in verwerk_lijst:
-                    index = verwerk_lijst.index(selected_video)
-                    verwerk_lijst.pop(index)
-                    listbox_nog.delete(index)
-                    log_debug("✅ Verwijderd uit te verwerken lijst")
-                log_debug("🎉 Batch verwerking succesvol voltooid!")
-                reset_progress_bar()
-            else:
-                log_debug("❌ Batch verwerking mislukt - bestand wordt gemarkeerd als mislukt")
-                global listbox_mislukt
-                if 'listbox_mislukt' in globals() and listbox_mislukt is not None:
-                    listbox_mislukt.insert(tk.END, safe_basename(selected_video))
-                    mislukte_lijst.append(selected_video)
-                if listbox_nog is not None and selected_video in verwerk_lijst:
-                    index = verwerk_lijst.index(selected_video)
-                    verwerk_lijst.pop(index)
-                    listbox_nog.delete(index)
-                log_debug("❌ Bestand toegevoegd aan mislukte lijst")
-                reset_progress_bar()
+            for pad in verwerk_lijst[:]:  # Kopie van de lijst, want we gaan hem aanpassen
+                model_name = "base"
+                language = "auto"
+                success = process_video_with_whisper(pad, model_name, language)
+                bestandsnaam = os.path.basename(pad)
+                if success:
+                    if listbox_voltooid is not None:
+                        listbox_voltooid.insert(tk.END, bestandsnaam)
+                        if pad not in voltooid_lijst:
+                            voltooid_lijst.append(pad)
+                else:
+                    if 'listbox_mislukt' in globals() and listbox_mislukt is not None:
+                        listbox_mislukt.insert(tk.END, bestandsnaam)
+                        if pad not in mislukte_lijst:
+                            mislukte_lijst.append(pad)
+                if pad in verwerk_lijst:
+                    idx = verwerk_lijst.index(pad)
+                    verwerk_lijst.pop(idx)
+                    if listbox_nog is not None:
+                        listbox_nog.delete(idx)
+            reset_progress_bar()
+            log_debug("🎉 Batchverwerking succesvol voltooid!")
         except Exception as e:
-            log_debug(f"❌ FOUT in verwerking thread: {e}")
-            log_debug(f"🔍 Exception type: {type(e).__name__}")
+            log_debug(f"❌ FOUT in batchverwerking: {e}")
             import traceback
             log_debug(f"📋 Stack trace: {traceback.format_exc()}")
-            # Voeg bestand toe aan mislukte lijst bij exceptie
-            if listbox_mislukt is not None and selected_video is not None:
-                listbox_mislukt.insert(tk.END, safe_basename(selected_video))
-                mislukte_lijst.append(selected_video)
-            if listbox_nog is not None and selected_video in verwerk_lijst:
-                index = verwerk_lijst.index(selected_video)
-                verwerk_lijst.pop(index)
-                listbox_nog.delete(index)
-            log_debug("❌ Bestand toegevoegd aan mislukte lijst na exceptie")
         finally:
             optimize_memory_usage()
             if root is not None:
@@ -2869,17 +2836,9 @@ def start_batch_verwerking():
             processing_active = False
             log_debug("🔓 Verwerking afgerond, startknop weer actief.")
 
-    # Blokkeer interface tijdens verwerking
     block_interface_during_processing()
-    
-    # Start thread
     import threading
-
-    log_debug("🧵 Start verwerking thread...")
-    thread = threading.Thread(target=process_thread)
-    thread.daemon = True
-    thread.start()
-    log_debug("✅ Verwerking thread gestart")
+    threading.Thread(target=process_thread, daemon=True).start()
 
 
 # Maak knoppen globaal beschikbaar
@@ -3659,17 +3618,18 @@ def voeg_bestand_toe_pad(pad):
         verwerk_lijst.append(pad)
         if listbox_nog is not None:
             listbox_nog.insert(tk.END, os.path.basename(pad))
-            
+            # Selecteer automatisch het eerste bestand
+            if listbox_nog.size() == 1:
+                listbox_nog.selection_set(0)
+                listbox_nog.activate(0)
             # Update bestandsnaam label als dit het eerste bestand is
             if len(verwerk_lijst) == 1 and info_label is not None:
-                # Geoptimaliseerde kleur voor betere leesbaarheid in alle thema's
                 huidig_thema = thema_var.get() if thema_var is not None else "dark"
                 if huidig_thema == "dark":
-                    text_color = "white"  # Witte tekst voor dark theme
+                    text_color = "white"
                 else:
-                    text_color = "#2c3e50"  # Donkere tekst voor andere thema's
+                    text_color = "#2c3e50"
                 info_label.config(text=f"📄 {os.path.basename(pad)}", fg=text_color)
-
 
 def voeg_map_toe_paden(map_pad):
     global info_label, thema_var
@@ -3683,10 +3643,13 @@ def voeg_map_toe_paden(map_pad):
                 video_count += 1
                 if eerste_video is None:
                     eerste_video = fpath
-
+        # Selecteer automatisch het eerste bestand in de listbox
+        if listbox_nog is not None and listbox_nog.size() > 0:
+            listbox_nog.selection_clear(0, tk.END)
+            listbox_nog.selection_set(0)
+            listbox_nog.activate(0)
         # Toon een melding als er videobestanden zijn gevonden
         if video_count > 0:
-            # Update info_label naar eerste gevonden videobestand
             if info_label is not None and eerste_video is not None:
                 huidig_thema = thema_var.get() if thema_var is not None else "dark"
                 if huidig_thema == "dark":
@@ -3710,6 +3673,66 @@ listbox_nog = None
 listbox_voltooid = None
 cpu_limit_var = None  # Globale CPU limiet variable
 
+# --- Automatische verwerkingsloop ---
+auto_processing_active = False  # Voorkom dubbele verwerking
+
+def start_auto_processing_loop():
+    global auto_processing_active
+    if auto_processing_active:
+        return  # Al bezig
+    auto_processing_active = True
+    process_next_in_listbox()
+
+def process_next_in_listbox():
+    global auto_processing_active
+    if listbox_nog is None or listbox_nog.size() == 0:
+        auto_processing_active = False
+        return
+
+    # Haal eerste item (altijd bovenaan)
+    bestandsnaam = listbox_nog.get(0)
+
+    # Zoek het volledige pad in verwerk_lijst
+    pad = None
+    for p in verwerk_lijst:
+        if os.path.basename(p) == bestandsnaam:
+            pad = p
+            break
+    if pad is None:
+        # Verwijder item als pad niet gevonden
+        listbox_nog.delete(0)
+        # Ga direct door met volgende
+        if root is not None:
+            root.after(100, process_next_in_listbox)
+        return
+
+    # Verwerk het bestand in een aparte thread
+    def worker():
+        try:
+            model_name = "base"
+            language = "auto"
+            success = process_video_with_whisper(pad, model_name, language)
+            if success:
+                if listbox_voltooid is not None:
+                    listbox_voltooid.insert(tk.END, bestandsnaam)
+                    if pad not in voltooid_lijst:
+                        voltooid_lijst.append(pad)
+            else:
+                if 'listbox_mislukt' in globals() and listbox_mislukt is not None:
+                    listbox_mislukt.insert(tk.END, bestandsnaam)
+                    if pad not in mislukte_lijst:
+                        mislukte_lijst.append(pad)
+            if pad in verwerk_lijst:
+                idx = verwerk_lijst.index(pad)
+                verwerk_lijst.pop(idx)
+                if listbox_nog is not None:
+                    listbox_nog.delete(idx)
+        except Exception as e:
+            log_debug(f"❌ Fout bij automatische verwerking: {e}")
+        finally:
+            if root is not None:
+                root.after(100, process_next_in_listbox)
+    threading.Thread(target=worker, daemon=True).start()
 
 def show_configuration_window():
     """Toon configuratie venster voor DeepL API en andere instellingen"""
@@ -5908,7 +5931,7 @@ if __name__ == "__main__":
         # Focus op het hoofdvenster
         root.focus_force()
         root.lift()
-        
+        start_auto_processing_loop()
         root.mainloop()
     except KeyboardInterrupt:
         print("\nProgramma gestopt door gebruiker")
