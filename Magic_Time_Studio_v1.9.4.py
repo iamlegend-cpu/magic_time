@@ -7,6 +7,7 @@ import datetime
 import subprocess
 import tempfile
 import time
+import requests
 from datetime import timedelta
 from typing import Any, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -1237,8 +1238,8 @@ def load_configuration():
                 config = json.load(f)
             deepl_key = config.get("deepl_key", None)
             # Forceer altijd 'geen' als vertaler bij opstarten
-            huidige_vertaler = "geen"
-            log_debug(f"[DEBUG] Vertaler geforceerd op 'geen' bij opstarten, ongeacht config.")
+            huidige_vertaler = "libretranslate"
+            log_debug(f"[DEBUG] Vertaler geforceerd op 'LibreTranslate' bij opstarten, ongeacht config.")
             subtitle_type = config.get("subtitle_type", "softcoded")
             hardcoded_language = config.get("hardcoded_language", "dutch_only")
             font_size = config.get("font_size", 9)
@@ -2143,10 +2144,26 @@ def split_text_into_chunks(text, max_chunk_size=5000):
 
 
 # --- Globale schakelaar om vertaling volledig uit te schakelen ---
-ENABLE_TRANSLATION = False  # Zet op False om vertaling uit te schakelen, True om te activeren
+ENABLE_TRANSLATION = True  # Zet op False om vertaling uit te schakelen, True om te activeren
+
+# Voeg deze functie toe boven translate_text_to_dutch:
+def libretranslate_translate(text, source_lang, target_lang, server_url="http://100.90.127.78:5000"):
+    url = f"{server_url}/translate"
+    payload = {
+        "q": text,
+        "source": source_lang,
+        "target": target_lang,
+        "format": "text"
+    }
+    response = requests.post(url, json=payload)
+    response.raise_for_status()
+    return response.json()["translatedText"]
+
+# --- Globale schakelaar om vertaling volledig uit te schakelen ---
+ENABLE_TRANSLATION = True  # Zet op False om vertaling uit te schakelen, True om te activeren
 
 def translate_text_to_dutch(text, source_language):
-    """Vertaal tekst naar Nederlands met Google Translate of DeepL, of geef origineel terug als vertaling uit staat"""
+    """Vertaal tekst naar Nederlands met LibreTranslate, of geef origineel terug als vertaling uit staat"""
     try:
         if not ENABLE_TRANSLATION:
             log_debug("🔕 Vertaling globaal uitgeschakeld via ENABLE_TRANSLATION.")
@@ -2154,30 +2171,21 @@ def translate_text_to_dutch(text, source_language):
         if huidige_vertaler == "geen":
             log_debug("🔕 Vertaling uitgeschakeld, geef originele tekst terug.")
             return text  # Geen vertaling uitvoeren
-        update_status_safe("🌐 Start vertaling naar Nederlands...")
-        log_debug(f"🌐 Start vertaling naar Nederlands...")
-        log_debug(f"📝 Bron tekst lengte: {len(text)} karakters")
-        log_debug(f"🌍 Bron taal: {source_language}")
-        log_debug(f"🔧 Gebruikte vertaler: {huidige_vertaler}")
-
-        # Haal huidige worker count op
-        worker_count = getattr(parallel_processor, "max_workers", 4)
-
-        if huidige_vertaler == "deepl" and deepl_key:
-            # Gebruik DeepL als API key beschikbaar is
+        if huidige_vertaler == "libretranslate":
+            update_status_safe("🌐 LibreTranslate vertaling bezig...")
+            log_debug(f"🌐 LibreTranslate vertaling bezig...")
             try:
-                update_status_safe("🌐 DeepL vertaling bezig...")
-                # Gebruik DeepL met chunking zoals Google Translate
-                return translate_text_chunks_with_google(text, source_language, worker_count)
+                # LibreTranslate serveradres hardcoded hieronder:
+                server_url = "http://100.90.127.78:5000"
+                src = source_language if source_language != "auto" else "en"
+                return libretranslate_translate(text, src, "nl", server_url)
             except Exception as e:
-                update_status_safe("❌ DeepL mislukt, probeer Google...")
-                log_debug(f"❌ DeepL vertaling mislukt, fallback naar Google: {e}")
-                # Fallback naar Google Translate met chunking
-                return translate_text_chunks_with_google(text, source_language, worker_count)
-        else:
-            # Gebruik Google Translate als standaard met chunking
-            update_status_safe("🌐 Google Translate vertaling bezig...")
-            return translate_text_chunks_with_google(text, source_language, worker_count)
+                update_status_safe("❌ LibreTranslate vertaling mislukt")
+                log_debug(f"❌ LibreTranslate vertaling mislukt: {e}")
+                return text
+        # Voor andere vertalers (Google/DeepL) alleen nog als code aanwezig, niet als fallback
+        log_debug("🔕 Geen geldige vertaler geselecteerd, geef originele tekst terug.")
+        return text
     except Exception as e:
         update_status_safe("❌ Vertaling mislukt")
         log_debug(f"❌ Vertaling mislukt: {e}")
@@ -2719,12 +2727,46 @@ def process_video_with_whisper(video_path, model_name="base", language="auto"):
                         "translation": ""
                     }
                 ]
-            # Sla SRT op in brontaal
-            success = create_srt_file(transcriptions, srt_path)
-            if not success:
-                log_debug("❌ SRT bestand maken mislukt (brontaal)")
-                messagebox.showerror("❌ Fout", "Kon SRT bestand niet maken")
-                return False
+                # Sla SRT op in brontaal
+                success = create_srt_file(transcriptions, srt_path)
+                if not success:
+                    log_debug("❌ SRT bestand maken mislukt (originele taal)")
+                    messagebox.showerror("❌ Fout", "Kon SRT bestand niet maken")
+                    return False
+
+        # === NIEUW: Maak vertaalde SRT en verwijder originele SRT ===
+        if huidige_vertaler != "libretranslate":
+            log_debug("🌐 Start vertaling naar Nederlands voor SRT...")
+            translated_transcriptions = []
+            for segment in transcriptions:
+                orig_text = segment.get("text", "").strip()
+                if orig_text:
+                    try:
+                        translated = translate_text_to_dutch(orig_text, language)
+                    except Exception as e:
+                        log_debug(f"❌ Vertaling mislukt voor segment: {e}")
+                        translated = orig_text
+                else:
+                    translated = ""
+                translated_transcriptions.append({
+                    "start": segment.get("start", 0),
+                    "end": segment.get("end", 0),
+                    "text": orig_text,
+                    "translation": translated
+                })
+            srt_path_nl = os.path.join(os.path.dirname(video_path), f"{video_name}.nl.srt")
+            log_debug(f"📁 SRT output pad (NL): {srt_path_nl}")
+            success_nl = create_srt_file(translated_transcriptions, srt_path_nl)
+            if success_nl:
+                log_debug("✅ Vertaalde SRT aangemaakt, verwijder originele SRT...")
+                try:
+                    if os.path.exists(srt_path):
+                        os.remove(srt_path)
+                        log_debug(f"🗑️ Originele SRT verwijderd: {srt_path}")
+                except Exception as e:
+                    log_debug(f"⚠️ Kon originele SRT niet verwijderen: {e}")
+            else:
+                log_debug("❌ Vertaalde SRT maken mislukt")
             return success
 
         # Stap 4: SRT bestand maken in originele taal
@@ -2799,10 +2841,18 @@ def start_batch_verwerking():
         return
 
     def process_thread():
+        global processing_active, selected_video
+        log_debug("🔄 Start batchverwerking in thread...")
+        optimize_memory_usage()
         try:
-            log_debug("🔄 Start batchverwerking in thread...")
-            optimize_memory_usage()
-            for pad in verwerk_lijst[:]:  # Kopie van de lijst, want we gaan hem aanpassen
+            while verwerk_lijst:
+                pad = verwerk_lijst[0]
+                selected_video = pad
+                # Update info_label met de juiste bestandsnaam
+                if info_label is not None:
+                    huidig_thema = thema_var.get() if thema_var is not None else "dark"
+                    text_color = "white" if huidig_thema == "dark" else "#2c3e50"
+                    info_label.config(text=f"📄 {os.path.basename(pad)}", fg=text_color)
                 model_name = "base"
                 language = "auto"
                 success = process_video_with_whisper(pad, model_name, language)
@@ -2817,11 +2867,10 @@ def start_batch_verwerking():
                         listbox_mislukt.insert(tk.END, bestandsnaam)
                         if pad not in mislukte_lijst:
                             mislukte_lijst.append(pad)
-                if pad in verwerk_lijst:
-                    idx = verwerk_lijst.index(pad)
-                    verwerk_lijst.pop(idx)
-                    if listbox_nog is not None:
-                        listbox_nog.delete(idx)
+                # Verwijder altijd het eerste item
+                verwerk_lijst.pop(0)
+                if listbox_nog is not None:
+                    listbox_nog.delete(0)
             reset_progress_bar()
             log_debug("🎉 Batchverwerking succesvol voltooid!")
         except Exception as e:
@@ -2832,7 +2881,6 @@ def start_batch_verwerking():
             optimize_memory_usage()
             if root is not None:
                 root.after(0, unblock_interface_after_processing)
-            global processing_active
             processing_active = False
             log_debug("🔓 Verwerking afgerond, startknop weer actief.")
 
@@ -4123,8 +4171,7 @@ def show_configuration_window():
         translator_config_frame,
         translator_var,
         "geen",
-        "google",
-        "deepl"
+        "libretranslate",
     )
     # Geoptimaliseerde dropdown styling voor translator
     huidig_thema = thema_var.get() if thema_var is not None else "dark"
@@ -4746,10 +4793,10 @@ def setup_ui():
     
     # Initialize Tkinter variables
     video_pad = tk.StringVar()
-    taal_var = tk.StringVar(value="Auto detectie")
+    taal_var = tk.StringVar(value="Engels")
     thema_var = tk.StringVar(value="dark")
     content_type_var = tk.StringVar(value="Eén hoofdtaal")
-    
+    update_translator_status()
     if root is not None:
         # --- FIX dubbele menubalk ---
         if 'menubalk' in globals() and menubalk is not None:
@@ -5931,7 +5978,7 @@ if __name__ == "__main__":
         # Focus op het hoofdvenster
         root.focus_force()
         root.lift()
-        start_auto_processing_loop()
+        
         root.mainloop()
     except KeyboardInterrupt:
         print("\nProgramma gestopt door gebruiker")
