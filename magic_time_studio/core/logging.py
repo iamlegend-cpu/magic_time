@@ -21,7 +21,20 @@ class Logger:
     def __init__(self):
         self.log_queue = queue.Queue()
         self.log_text_widget = None
-        self.log_path = os.path.join(USER_OUTPUT_DIR, "MagicTime_debug_log.txt")
+        
+        # Laad logging configuratie uit environment variables
+        self.log_to_file = config_manager.get_env("LOG_TO_FILE", "false").lower() == "true"
+        self.log_level = config_manager.get_env("LOG_LEVEL", "INFO").upper()
+        
+        # Log bestand pad
+        if self.log_to_file:
+            log_file_path = config_manager.get_env("LOG_FILE_PATH", "")
+            if log_file_path:
+                self.log_path = log_file_path
+            else:
+                self.log_path = os.path.join(USER_OUTPUT_DIR, "MagicTime_debug_log.txt")
+        else:
+            self.log_path = None
         
         # Zorg ervoor dat output directory bestaat
         os.makedirs(USER_OUTPUT_DIR, exist_ok=True)
@@ -44,12 +57,13 @@ class Logger:
             full_msg = f"{timestamp} ℹ️ {msg}"
             color = "black"
         
-        # Schrijf naar bestand
-        try:
-            with open(self.log_path, "a", encoding="utf-8") as f:
-                f.write(full_msg + "\n")
-        except Exception as e:
-            pass  # Stil falen in productie
+        # Schrijf naar bestand (alleen als logging naar bestand is ingeschakeld)
+        if self.log_to_file and self.log_path:
+            try:
+                with open(self.log_path, "a", encoding="utf-8") as f:
+                    f.write(full_msg + "\n")
+            except Exception as e:
+                pass  # Stil falen in productie
         
         # Voeg toe aan queue voor real-time updates
         try:

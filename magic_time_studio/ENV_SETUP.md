@@ -31,10 +31,134 @@ LIBRETRANSLATE_RATE_LIMIT=60
 
 ## 🔧 Beschikbare Variables
 
-### LIBRETRANSLATE_SERVER
+### 🌐 LibreTranslate Configuratie
+
+#### LIBRETRANSLATE_SERVER
 **Type:** URL  
 **Standaard:** `http://100.90.127.78:5000`  
 **Beschrijving:** De URL van je LibreTranslate server
+
+#### LIBRETRANSLATE_API_KEY
+**Type:** String  
+**Standaard:** (leeg)  
+**Beschrijving:** API key voor LibreTranslate (indien vereist)
+
+#### LIBRETRANSLATE_TIMEOUT
+**Type:** Integer (seconden)  
+**Standaard:** `30`  
+**Beschrijving:** Timeout voor API requests
+
+#### LIBRETRANSLATE_RATE_LIMIT
+**Type:** Integer (requests per minuut)  
+**Standaard:** `60`  
+**Beschrijving:** Rate limiting voor API requests
+
+### 🎤 Whisper Configuratie
+
+#### DEFAULT_WHISPER_MODEL
+**Type:** String  
+**Standaard:** `base`  
+**Opties:** `tiny`, `base`, `small`, `medium`, `large`  
+**Beschrijving:** Standaard Whisper model voor transcriptie
+
+#### WHISPER_DEVICE
+**Type:** String  
+**Standaard:** `cpu`  
+**Opties:** `cpu`, `cuda`, `mps`  
+**Beschrijving:** Device voor Whisper verwerking
+
+#### WHISPER_CACHE_DIR
+**Type:** Path  
+**Standaard:** (automatisch)  
+**Beschrijving:** Cache directory voor Whisper modellen
+
+### 🎨 Applicatie Configuratie
+
+#### DEFAULT_THEME
+**Type:** String  
+**Standaard:** `dark`  
+**Opties:** `light`, `dark`, `blue`, `green`  
+**Beschrijving:** Standaard applicatie thema
+
+#### DEFAULT_FONT_SIZE
+**Type:** Integer  
+**Standaard:** `9`  
+**Beschrijving:** Standaard font grootte
+
+#### DEFAULT_WORKER_COUNT
+**Type:** Integer  
+**Standaard:** `4`  
+**Beschrijving:** Standaard aantal worker threads
+
+#### DEFAULT_SUBTITLE_TYPE
+**Type:** String  
+**Standaard:** `softcoded`  
+**Opties:** `softcoded`, `hardcoded`  
+**Beschrijving:** Standaard subtitle type
+
+#### DEFAULT_HARDCODED_LANGUAGE
+**Type:** String  
+**Standaard:** `dutch_only`  
+**Beschrijving:** Standaard hardcoded taal
+
+### 📝 Logging Configuratie
+
+#### LOG_LEVEL
+**Type:** String  
+**Standaard:** `INFO`  
+**Opties:** `DEBUG`, `INFO`, `WARNING`, `ERROR`  
+**Beschrijving:** Logging niveau
+
+#### LOG_TO_FILE
+**Type:** Boolean  
+**Standaard:** `false`  
+**Beschrijving:** Log naar bestand inschakelen
+
+#### LOG_FILE_PATH
+**Type:** Path  
+**Standaard:** (automatisch)  
+**Beschrijving:** Pad naar log bestand
+
+### 📁 Output Configuratie
+
+#### DEFAULT_OUTPUT_DIR
+**Type:** Path  
+**Standaard:** (automatisch)  
+**Beschrijving:** Standaard output directory
+
+#### AUTO_CREATE_OUTPUT_DIR
+**Type:** Boolean  
+**Standaard:** `true`  
+**Beschrijving:** Automatisch output directory maken
+
+### ⚡ Performance Configuratie
+
+#### CPU_LIMIT_PERCENTAGE
+**Type:** Integer  
+**Standaard:** `80`  
+**Beschrijving:** CPU limiet percentage
+
+#### MEMORY_LIMIT_MB
+**Type:** Integer  
+**Standaard:** `2048`  
+**Beschrijving:** Memory limiet in MB
+
+### 🔒 Security Configuratie
+
+#### AUTO_CLEANUP_TEMP
+**Type:** Boolean  
+**Standaard:** `true`  
+**Beschrijving:** Automatisch temp bestanden opruimen
+
+#### ENCRYPT_SENSITIVE_DATA
+**Type:** Boolean  
+**Standaard:** `false`  
+**Beschrijving:** Encrypt gevoelige data
+
+#### ENCRYPTION_KEY
+**Type:** String  
+**Standaard:** (leeg)  
+**Beschrijving:** Encryption key voor gevoelige data
 
 **Voorbeelden:**
 ```env

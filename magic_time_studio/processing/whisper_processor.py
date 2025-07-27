@@ -34,9 +34,17 @@ class WhisperProcessor:
         self.current_model = None
         self.is_initialized = False
         
-    def initialize(self, model_name: str = "base") -> bool:
+        # Laad configuratie uit environment variables
+        self.default_model = config_manager.get_env("DEFAULT_WHISPER_MODEL", "base")
+        self.device = config_manager.get_env("WHISPER_DEVICE", "cpu")
+        
+    def initialize(self, model_name: str = None) -> bool:
         """Initialiseer Whisper met specifiek model"""
         try:
+            # Gebruik default model als geen model opgegeven
+            if model_name is None:
+                model_name = self.default_model
+            
             if model_name not in self.available_models:
                 logger.log_debug(f"❌ Onbekend Whisper model: {model_name}")
                 return False

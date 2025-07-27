@@ -8,7 +8,7 @@ import logging
 from typing import Dict, Any, Optional
 from pathlib import Path
 
-# Standaard configuratie waarden
+# Standaard configuratie waarden (worden overschreven door .env)
 DEFAULT_CONFIG = {
     "translator": "libretranslate",
     "subtitle_type": "softcoded",
@@ -89,20 +89,61 @@ class ConfigManager:
             return os.path.join(os.path.expanduser('~'), '.config', app_name)
     
     def load_configuration(self) -> Dict[str, Any]:
-        """Laad configuratie uit bestand"""
+        """Laad configuratie uit bestand en .env"""
         try:
+            # Start met standaard configuratie
+            config = DEFAULT_CONFIG.copy()
+            
+            # Laad .env variabelen
+            env_config = self._load_config_from_env()
+            config.update(env_config)
+            
+            # Laad JSON configuratie (overschrijft .env)
             if os.path.exists(self.config_path):
                 with open(self.config_path, "r", encoding="utf-8") as f:
-                    config = json.load(f)
-                # Merge met standaard waarden
-                merged_config = DEFAULT_CONFIG.copy()
-                merged_config.update(config)
-                return merged_config
-            else:
-                return DEFAULT_CONFIG.copy()
+                    json_config = json.load(f)
+                config.update(json_config)
+            
+            return config
         except Exception as e:
             print(f"❌ Fout bij laden configuratie: {e}")
             return DEFAULT_CONFIG.copy()
+    
+    def _load_config_from_env(self) -> Dict[str, Any]:
+        """Laad configuratie uit environment variables"""
+        config = {}
+        
+        # Whisper configuratie
+        config["default_whisper_model"] = self.get_env("DEFAULT_WHISPER_MODEL", "base")
+        config["whisper_device"] = self.get_env("WHISPER_DEVICE", "cpu")
+        
+        # Applicatie configuratie
+        config["theme"] = self.get_env("DEFAULT_THEME", "dark")
+        config["font_size"] = int(self.get_env("DEFAULT_FONT_SIZE", "9"))
+        config["worker_count"] = int(self.get_env("DEFAULT_WORKER_COUNT", "4"))
+        config["subtitle_type"] = self.get_env("DEFAULT_SUBTITLE_TYPE", "softcoded")
+        config["hardcoded_language"] = self.get_env("DEFAULT_HARDCODED_LANGUAGE", "dutch_only")
+        
+        # Logging configuratie
+        log_level = self.get_env("LOG_LEVEL", "INFO").upper()
+        config["logging_config"] = {
+            "debug": log_level in ["DEBUG"],
+            "info": log_level in ["DEBUG", "INFO"],
+            "warning": log_level in ["DEBUG", "INFO", "WARNING"],
+            "error": log_level in ["DEBUG", "INFO", "WARNING", "ERROR"]
+        }
+        
+        # Performance configuratie
+        config["cpu_limit_percentage"] = int(self.get_env("CPU_LIMIT_PERCENTAGE", "80"))
+        config["memory_limit_mb"] = int(self.get_env("MEMORY_LIMIT_MB", "2048"))
+        
+        # Output configuratie
+        config["auto_create_output_dir"] = self.get_env("AUTO_CREATE_OUTPUT_DIR", "true").lower() == "true"
+        
+        # Security configuratie
+        config["auto_cleanup_temp"] = self.get_env("AUTO_CLEANUP_TEMP", "true").lower() == "true"
+        
+        return config
     
     def load_env_variables(self) -> Dict[str, str]:
         """Laad environment variables uit .env bestanden"""
