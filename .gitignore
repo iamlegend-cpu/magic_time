@@ -70,6 +70,11 @@ output/
 # Config files (optioneel - uncomment als je config niet wilt committen)
 # config.json
 
+# Environment variables
+.env
+.env.local
+.env.production
+
 # Whisper models cache
 *.pt
 *.bin

@@ -34,7 +34,7 @@ class Translator:
             "zh": "Chinees"
         }
         
-        self.default_server = "http://100.90.127.78:5000"
+        self.default_server = config_manager.get_env("LIBRETRANSLATE_SERVER", "http://100.90.127.78:5000")
         self.current_service = "libretranslate"
         
     def set_service(self, service: str):
@@ -91,10 +91,11 @@ class Translator:
                     "format": "text"
                 }
                 
+                timeout = int(config_manager.get_env("LIBRETRANSLATE_TIMEOUT", "30"))
                 response = requests.post(
                     f"{server_url}/translate",
                     json=payload,
-                    timeout=30
+                    timeout=timeout
                 )
                 
                 if response.status_code == 200:

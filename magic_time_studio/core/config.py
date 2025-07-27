@@ -6,6 +6,7 @@ import os
 import json
 import logging
 from typing import Dict, Any, Optional
+from pathlib import Path
 
 # Standaard configuratie waarden
 DEFAULT_CONFIG = {
@@ -73,6 +74,7 @@ class ConfigManager:
     def __init__(self):
         self.config_path = os.path.join(self.get_user_data_dir(), "config.json")
         self.config = self.load_configuration()
+        self.env_vars = self.load_env_variables()
         
     def get_user_data_dir(self) -> str:
         """Krijg de gebruiker data directory"""
@@ -102,6 +104,36 @@ class ConfigManager:
             print(f"❌ Fout bij laden configuratie: {e}")
             return DEFAULT_CONFIG.copy()
     
+    def load_env_variables(self) -> Dict[str, str]:
+        """Laad environment variables uit .env bestanden"""
+        env_vars = {}
+        
+        # Zoek naar .env bestanden in verschillende locaties
+        env_paths = [
+            Path(__file__).parent.parent / ".env",  # magic_time_studio/.env
+            Path.cwd() / ".env",  # Huidige directory
+            Path.home() / ".env",  # Home directory
+        ]
+        
+        for env_path in env_paths:
+            if env_path.exists():
+                try:
+                    with open(env_path, "r", encoding="utf-8") as f:
+                        for line in f:
+                            line = line.strip()
+                            # Skip comments en lege regels
+                            if line and not line.startswith("#"):
+                                if "=" in line:
+                                    key, value = line.split("=", 1)
+                                    key = key.strip()
+                                    value = value.strip().strip('"').strip("'")
+                                    env_vars[key] = value
+                    logging.debug(f"✅ Environment variables geladen van: {env_path}")
+                except Exception as e:
+                    logging.warning(f"⚠️ Kon .env bestand niet laden: {env_path} - {e}")
+        
+        return env_vars
+    
     def save_configuration(self) -> bool:
         """Sla configuratie op naar bestand"""
         try:
@@ -118,6 +150,10 @@ class ConfigManager:
     def get(self, key: str, default: Any = None) -> Any:
         """Krijg een configuratie waarde"""
         return self.config.get(key, default)
+    
+    def get_env(self, key: str, default: str = "") -> str:
+        """Krijg een environment variable"""
+        return self.env_vars.get(key, default)
     
     def set(self, key: str, value: Any) -> None:
         """Zet een configuratie waarde"""
