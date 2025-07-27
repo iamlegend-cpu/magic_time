@@ -76,4 +76,4 @@ index 62b345d..e874dd9 100644
      except Exception as e:
          print(f"Fout bij opstarten: {e}")
          import traceback
-         traceback.print_exc()# test
+         traceback.print_exc()

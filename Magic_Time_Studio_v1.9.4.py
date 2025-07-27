@@ -2276,19 +2276,10 @@ def create_srt_file(transcriptions, output_path):
                 f.write(f"{i}\n")
                 f.write(f"{start_time} --> {end_time}\n")
                 
-                # Voor softcoded: Alleen Nederlandse tekst
-                # Voor hardcoded: Afhankelijk van taal optie
+                # Voor softcoded: Alleen Nederlandse tekst tonen als die er is, anders origineel
                 if translated_text and translated_text != original_text:
-                    # Er is een vertaling beschikbaar
-                    if original_text and not translated_text.startswith(original_text):
-                        # Verschillende talen, schrijf beide
-                        f.write(f"{original_text}\n")
-                        f.write(f"{translated_text}\n")
-                    else:
-                        # Alleen vertaling (voor softcoded)
-                        f.write(f"{translated_text}\n")
+                    f.write(f"{translated_text}\n")
                 else:
-                    # Geen vertaling, schrijf origineel
                     f.write(f"{original_text}\n")
                 
                 f.write("\n")
@@ -2690,52 +2681,53 @@ def process_video_with_whisper(video_path, model_name="base", language="auto"):
             log_debug("❌ Transcriptie mislukt of geen tekst gevonden in resultaat")
             return False
         log_debug("✅ Stap 3 voltooid: Transcriptie klaar")
+
+        # Maak altijd de transcriptions-lijst aan, ongeacht vertaler
+        if "segments" in transcription_result and transcription_result["segments"]:
+            transcriptions = []
+            for segment in transcription_result["segments"]:
+                if isinstance(segment, dict):
+                    seg_text = segment.get("text", "").strip()
+                    seg_start = segment.get("start", 0)
+                    seg_end = segment.get("end", 0)
+                    if seg_text:
+                        transcriptions.append({
+                            "start": seg_start,
+                            "end": seg_end,
+                            "text": seg_text,
+                            "translation": ""  # Nog geen vertaling
+                        })
+            log_debug(f"📊 {len(transcriptions)} segmenten voor originele SRT.")
+        else:
+            log_debug("⚠️ Geen segmenten gevonden, gebruik fallback")
+            original_text = transcription_result.get("text", "")
+            if not original_text:
+                log_debug("❌ Geen tekst beschikbaar voor fallback SRT.")
+                return False
+            transcriptions = [
+                {
+                    "start": 0,
+                    "end": 999999,  # Hele video
+                    "text": original_text,
+                    "translation": ""
+                }
+            ]
+
         # Stop direct als vertaling uit staat
         if huidige_vertaler == "geen":
             log_debug("🔕 Vertaling uitgeschakeld, sla SRT op in brontaal.")
-            # SRT in brontaal
             video_name = os.path.splitext(os.path.basename(video_path))[0]
             srt_path = os.path.join(os.path.dirname(video_path), f"{video_name}.srt")
             log_debug(f"📁 SRT output pad: {srt_path}")
-            # Controleer of er segmenten zijn
-            if "segments" in transcription_result and transcription_result["segments"]:
-                transcriptions = []
-                for segment in transcription_result["segments"]:
-                    if isinstance(segment, dict):
-                        seg_text = segment.get("text", "").strip()
-                        seg_start = segment.get("start", 0)
-                        seg_end = segment.get("end", 0)
-                        if seg_text:
-                            transcriptions.append({
-                                "start": seg_start,
-                                "end": seg_end,
-                                "text": seg_text,
-                                "translation": ""  # Geen vertaling
-                            })
-                log_debug(f"📊 {len(transcriptions)} segmenten voor originele SRT.")
-            else:
-                log_debug("⚠️ Geen segmenten gevonden, gebruik fallback")
-                original_text = transcription_result.get("text", "")
-                if not original_text:
-                    log_debug("❌ Geen tekst beschikbaar voor fallback SRT.")
-                    return False
-                transcriptions = [
-                    {
-                        "start": 0,
-                        "end": 999999,  # Hele video
-                        "text": original_text,
-                        "translation": ""
-                    }
-                ]
-                # Sla SRT op in brontaal
-                success = create_srt_file(transcriptions, srt_path)
-                if not success:
-                    log_debug("❌ SRT bestand maken mislukt (originele taal)")
-                    messagebox.showerror("❌ Fout", "Kon SRT bestand niet maken")
-                    return False
+            success = create_srt_file(transcriptions, srt_path)
+            if not success:
+                log_debug("❌ SRT bestand maken mislukt (originele taal)")
+                messagebox.showerror("❌ Fout", "Kon SRT bestand niet maken")
+                return False
+            return success
 
         # === NIEUW: Maak vertaalde SRT en verwijder originele SRT ===
-        if huidige_vertaler != "libretranslate":
+        if huidige_vertaler == "libretranslate":
             log_debug("🌐 Start vertaling naar Nederlands voor SRT...")
             translated_transcriptions = []
             for segment in transcriptions:
@@ -2754,6 +2746,8 @@ def process_video_with_whisper(video_path, model_name="base", language="auto"):
                     "text": orig_text,
                     "translation": translated
                 })
+            video_name = os.path.splitext(os.path.basename(video_path))[0]
+            srt_path = os.path.join(os.path.dirname(video_path), f"{video_name}.srt")
             srt_path_nl = os.path.join(os.path.dirname(video_path), f"{video_name}.nl.srt")
             log_debug(f"📁 SRT output pad (NL): {srt_path_nl}")
             success_nl = create_srt_file(translated_transcriptions, srt_path_nl)
@@ -2767,40 +2761,13 @@ def process_video_with_whisper(video_path, model_name="base", language="auto"):
                     log_debug(f"⚠️ Kon originele SRT niet verwijderen: {e}")
             else:
                 log_debug("❌ Vertaalde SRT maken mislukt")
-            return success
+            return success_nl
 
-        # Stap 4: SRT bestand maken in originele taal
+        # Stap 4: SRT bestand maken in originele taal (fallback)
         log_debug("📝 STAP 4: SRT bestand maken in originele taal...")
         video_name = os.path.splitext(os.path.basename(video_path))[0]
         srt_path = os.path.join(os.path.dirname(video_path), f"{video_name}.srt")
         log_debug(f"📁 SRT output pad: {srt_path}")
-        if "segments" in transcription_result and transcription_result["segments"]:
-            transcriptions = []
-            for segment in transcription_result["segments"]:
-                if isinstance(segment, dict):
-                    seg_text = segment.get("text", "").strip()
-                    seg_start = segment.get("start", 0)
-                    seg_end = segment.get("end", 0)
-                    if seg_text:
-                        transcriptions.append({
-                            "start": seg_start,
-                            "end": seg_end,
-                            "text": seg_text,
-                            "translation": ""  # Geen vertaling meer
-                        })
-            log_debug(f"📊 {len(transcriptions)} segmenten voor originele SRT.")
-        else:
-            log_debug("⚠️ Geen segmenten gevonden, gebruik fallback")
-            original_text = transcription_result.get("text", "")
-            transcriptions = [
-                {
-                    "start": 0,
-                    "end": 999999,  # Hele video
-                    "text": original_text,
-                    "translation": ""
-                }
-            ]
-        # Sla SRT op in originele taal
         success = create_srt_file(transcriptions, srt_path)
         if not success:
             log_debug("❌ SRT bestand maken mislukt (originele taal)")
@@ -4165,7 +4132,7 @@ def show_configuration_window():
     tk.Label(
         translator_config_frame, text="Standaard Vertaler:", font=("Arial", 9), bg=frame_bg, fg=frame_fg
     ).pack(anchor="w", padx=10, pady=(5, 2))
-    translator_default = huidige_vertaler if huidige_vertaler in ["geen", "google", "deepl"] else "geen"
+    translator_default = huidige_vertaler if huidige_vertaler in ["geen", "libretranslate"] else "geen"
     translator_var = tk.StringVar(value=translator_default)
     translator_combo = tk.OptionMenu(
         translator_config_frame,

@@ -1,6 +1,6 @@
 {
-  "translator": "geen",
-  "huidige_vertaler": "geen",
+  "translator": "libretranslate",
+  "huidige_vertaler": "libretranslate",
   "model_selection": "base",
   "output_format": "srt",
   "cpu_limit": 50,
