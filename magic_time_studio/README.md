@@ -105,7 +105,7 @@ pip install -r magic_time_studio/requirements.txt
 
 ### 2. Processing Modules maken
 - [x] `processing/whisper_processor.py` - Whisper transcriptie ✅
-- [x] `processing/translator.py` - LibreTranslate/Google vertaling ✅
+- [x] `processing/translator.py` - LibreTranslate vertaling ✅
 - [x] `processing/audio_processor.py` - Audio extractie ✅
 - [x] `processing/video_processor.py` - Video verwerking ✅
 - [x] `processing/batch_processor.py` - Batch verwerking ✅

@@ -91,7 +91,7 @@ class ProcessingPanelSimple:
         self.translator_var = tk.StringVar(value="libretranslate")
         translator_combobox = theme_manager.create_styled_combobox(
             translator_frame,
-            ["libretranslate", "google", "geen"],
+            ["libretranslate", "geen"],
             textvariable=self.translator_var
         )
         translator_combobox.pack(fill=tk.X, pady=2)

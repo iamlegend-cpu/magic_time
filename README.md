@@ -82,7 +82,7 @@ pip install -r magic_time_studio/requirements.txt
 
 ### 🚀 Geavanceerde Functionaliteit
 - **Whisper AI** voor automatische transcriptie
-- **LibreTranslate/Google Translate** voor vertaling
+- **LibreTranslate** voor vertaling
 - **FFmpeg** voor audio/video verwerking
 - **Batch verwerking** voor meerdere bestanden
 - **Real-time logging** met live viewer

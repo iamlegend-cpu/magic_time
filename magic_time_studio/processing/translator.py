@@ -1,6 +1,6 @@
 """
 Translator voor Magic Time Studio
-Beheert tekstvertaling met LibreTranslate en Google Translate
+Beheert tekstvertaling met LibreTranslate
 """
 
 import os
@@ -17,7 +17,6 @@ class Translator:
     def __init__(self):
         self.supported_services = {
             "libretranslate": "LibreTranslate (gratis)",
-            "google": "Google Translate (internet vereist)",
             "geen": "Geen vertaling"
         }
         
@@ -66,8 +65,6 @@ class Translator:
             
             if service == "libretranslate":
                 return self._translate_libretranslate(text, source_lang, target_lang)
-            elif service == "google":
-                return self._translate_google(text, source_lang, target_lang)
             else:
                 return {"error": f"Onbekende service: {service}"}
                 
@@ -127,51 +124,7 @@ class Translator:
             logger.log_debug(f"❌ LibreTranslate fout: {e}")
             return {"error": str(e)}
     
-    def _translate_google(self, text: str, source_lang: str, target_lang: str) -> Dict[str, Any]:
-        """Vertaal met Google Translate"""
-        try:
-            # Probeer Google Translate te importeren
-            try:
-                from googletrans import Translator
-                translator = Translator()
-            except ImportError:
-                logger.log_debug("❌ Google Translate niet geïnstalleerd. Installeer met: pip install googletrans==4.0.0rc1")
-                return {"error": "Google Translate niet geïnstalleerd"}
-            
-            # Split tekst in chunks
-            chunks = self._split_text_into_chunks(text, max_chunk_size=5000)
-            translated_chunks = []
-            
-            for i, chunk in enumerate(chunks):
-                logger.log_debug(f"🌐 Google Translate chunk {i+1}/{len(chunks)}")
-                
-                try:
-                    result = translator.translate(
-                        chunk,
-                        src=source_lang,
-                        dest=target_lang
-                    )
-                    translated_chunks.append(result.text)
-                except Exception as e:
-                    logger.log_debug(f"❌ Google Translate chunk fout: {e}")
-                    translated_chunks.append(chunk)  # Gebruik origineel als fallback
-                
-                # Korte pauze tussen chunks
-                time.sleep(0.2)
-            
-            translated_text = " ".join(translated_chunks)
-            logger.log_debug(f"✅ Google Translate vertaling voltooid")
-            
-            return {
-                "success": True,
-                "translated_text": translated_text,
-                "service": "google",
-                "chunks": len(chunks)
-            }
-            
-        except Exception as e:
-            logger.log_debug(f"❌ Google Translate fout: {e}")
-            return {"error": str(e)}
+
     
     def _split_text_into_chunks(self, text: str, max_chunk_size: int = 5000) -> List[str]:
         """Split tekst in chunks voor vertaling"""

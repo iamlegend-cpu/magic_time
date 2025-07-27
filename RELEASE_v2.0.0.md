@@ -92,7 +92,7 @@ python -m magic_time_studio.main
 - **Python 3.8+**
 - **FFmpeg** (automatisch gedetecteerd of handmatig geïnstalleerd)
 - **openai-whisper** (automatisch geïnstalleerd)
-- **requests** (voor API calls)
+- **requests** (voor LibreTranslate API calls)
 
 ## 🐛 Bekende Issues
 

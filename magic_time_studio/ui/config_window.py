@@ -234,7 +234,7 @@ class ConfigWindow:
         self.default_translator_var = tk.StringVar(value=config_manager.get("default_translator", "libretranslate"))
         translator_combobox = theme_manager.create_styled_combobox(
             translator_frame,
-            ["libretranslate", "google", "geen"],
+            ["libretranslate", "geen"],
             textvariable=self.default_translator_var
         )
         translator_combobox.pack(fill=tk.X, pady=2)
