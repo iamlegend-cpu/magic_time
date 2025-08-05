@@ -6,13 +6,12 @@ import os
 import datetime
 import queue
 import threading
-import tkinter as tk
 from typing import Optional, Tuple
-from .config import config_manager
+from magic_time_studio.core.config import config_manager
 
 # Globale variabelen
 log_queue = queue.Queue()
-log_text_widget: Optional[tk.Text] = None
+log_text_widget: Optional[object] = None  # PyQt6 QTextEdit widget
 USER_OUTPUT_DIR = os.path.join(os.path.expanduser("~"), "MagicTime_Output")
 
 class Logger:
@@ -60,6 +59,8 @@ class Logger:
         # Schrijf naar bestand (alleen als logging naar bestand is ingeschakeld)
         if self.log_to_file and self.log_path:
             try:
+                # Zorg ervoor dat de directory bestaat
+                os.makedirs(os.path.dirname(self.log_path), exist_ok=True)
                 with open(self.log_path, "a", encoding="utf-8") as f:
                     f.write(full_msg + "\n")
             except Exception as e:
@@ -83,8 +84,13 @@ class Logger:
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         formatted_msg = f"[{timestamp}] {msg}"
 
-        # Print naar terminal
-        print(formatted_msg)
+        # Print naar terminal (met None check voor PyInstaller)
+        try:
+            import sys
+            if sys.stdout is not None:
+                print(formatted_msg)
+        except:
+            pass  # Stil falen als stdout niet beschikbaar is
 
         # Voeg toe aan GUI log queue voor real-time updates (alleen voor belangrijke berichten)
         if category in ["error", "success", "warning"] or "Fout" in msg or "✅" in msg or "❌" in msg:
@@ -93,12 +99,12 @@ class Logger:
         # Ook direct naar live log viewer als die open is (alleen voor belangrijke berichten)
         if self.log_text_widget is not None and (category in ["error", "success", "warning"] or "Fout" in msg or "✅" in msg or "❌" in msg):
             try:
-                self.log_text_widget.insert(tk.END, f"{formatted_msg}\n")
-                self.log_text_widget.see(tk.END)
+                # PyQt6 QTextEdit append methode
+                self.log_text_widget.append(f"{formatted_msg}")
             except:
                 pass
     
-    def set_log_widget(self, widget: tk.Text) -> None:
+    def set_log_widget(self, widget: object) -> None:
         """Zet de log text widget"""
         self.log_text_widget = widget
     

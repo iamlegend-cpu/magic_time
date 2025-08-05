@@ -1,177 +1,136 @@
-# Magic Time Studio v2.0
+# Magic Time Studio
 
-Een geavanceerde applicatie voor automatische ondertiteling en vertaling van video's, volledig herschreven met een modulaire architectuur.
-
-## 🚀 Nieuwe Versie 2.0
-
-Magic Time Studio v2.0 is een complete herstructurering van de originele applicatie met:
-
-- ✅ **Modulaire architectuur** - Alle functionaliteit opgesplitst in logische modules
-- ✅ **Identieke GUI** - Exact dezelfde interface als versie 1.9.4
-- ✅ **Verbeterde onderhoudbaarheid** - Makkelijker uit te breiden en aan te passen
-- ✅ **Thread-safe** - Veilige multi-threading voor betere performance
-- ✅ **Moderne best practices** - Professionele code structuur
+Een geavanceerde video ondertiteling applicatie gebouwd met PyQt6.
 
 ## 📁 Project Structuur
 
-```
 magic_time/
-├── Magic_Time_Studio_v1.9.4.py    # Originele versie (behouden voor referentie)
-├── magic_time_studio/             # Nieuwe modulaire versie v2.0
-│   ├── core/                      # Kern functionaliteit
-│   │   ├── config.py             # Configuratie management
-│   │   ├── logging.py            # Logging systeem
-│   │   └── utils.py              # Utility functies
-│   ├── models/                   # Data modellen
-│   │   ├── processing_queue.py   # Verwerkingswachtrij
-│   │   ├── progress_tracker.py   # Voortgang tracking
-│   │   └── performance_tracker.py # Performance monitoring
-│   ├── ui/                       # Gebruikersinterface
-│   │   ├── main_window.py        # Hoofdvenster
-│   │   ├── themes.py             # Thema management
-│   │   ├── config_window.py      # Configuratievenster
-│   │   └── log_viewer.py         # Log viewer
-│   ├── processing/               # Verwerkingsmodules
-│   │   ├── whisper_processor.py  # Whisper transcriptie
-│   │   ├── translator.py         # Vertaling
-│   │   ├── audio_processor.py    # Audio verwerking
-│   │   ├── video_processor.py    # Video verwerking
-│   │   └── batch_processor.py    # Batch verwerking
-│   ├── main.py                   # Hoofdapplicatie
-│   ├── startup.py                # Startup script
-│   ├── requirements.txt          # Dependencies
-│   └── README.md                 # Documentatie
-└── README.md                     # Dit bestand
-```
+├── 📁 magic_time_studio/          # Hoofdapplicatie
+│   ├── 📁 core/                   # Kern functionaliteit
+│   ├── 📁 models/                 # Data modellen
+│   ├── 📁 processing/             # Verwerking modules
+│   ├── 📁 ui_pyqt6/              # PyQt6 gebruikersinterface
+│   ├── 📁 docs/                   # Documentatie
+│   ├── main_pyqt6.py             # Hoofdapplicatie entry point
+│   ├── run.py                     # Start script
+│   └── startup.py                 # Initialisatie script
+├── 📁 tools/                      # Hulpmiddelen en build tools
+│   ├── 📁 bin/                    # Binaire bestanden (ffmpeg.exe)
+│   ├── 📁 build/                  # Build bestanden
+│   ├── 📁 dist/                   # Distributie bestanden
+│   ├── 📁 hooks/                  # PyInstaller hooks
+│   └── config.json                # Configuratie bestanden
+├── 📁 scripts/                    # Scripts en utilities
+│   ├── start_pyqt6.bat           # Windows start script
+│   ├── start_pyqt6.ps1           # PowerShell start script
+│   ├── install_pyqt6.py          # PyQt6 installatie script
+│   └── build_exe.py              # Executable build script
+├── 📁 docs/                       # Project documentatie
+│   ├── README.md                  # Project overzicht
+│   ├── BUILD_INSTRUCTIONS.md      # Build instructies
+│   ├── PYQT6_MIGRATION.md         # PyQt6 migratie
+│   └── PYQT6_README.md           # PyQt6 documentatie
+├── 📁 tests/                      # Test bestanden
+│   ├── test_pyqt6.py             # PyQt6 tests
+│   ├── test_exe_ffmpeg.py        # FFmpeg tests
+│   └── test_ffmpeg_bundle.py     # Bundle tests
+├── 📁 assets/                     # Media bestanden
+│   └── *.ico, .png              # Iconen en afbeeldingen
+├── 📁 pyqt6_env/                 # Python virtual environment
+└── .gitignore                     # Git ignore bestanden
 
-## 🚀 Hoe te starten
+## 🚀 Snel Starten
 
-### Optie 1: Startup script (aanbevolen)
+### Vereisten
+
+- Python 3.8+
+- PyQt6
+- FFmpeg
+
+### Installatie
+
 ```bash
-python magic_time_studio/startup.py
+# Clone het project
+git clone <repository-url>
+cd magic_time
+
+# Activeer virtual environment
+pyqt6_env\Scripts\activate
+
+# Start de applicatie
+python magic_time_studio\run.py
 ```
 
-### Optie 2: Direct uitvoeren
+### Of gebruik de start scripts
+
 ```bash
-python magic_time_studio/run.py
+# Windows
+scripts\start_pyqt6.bat
+
+# PowerShell
+scripts\start_pyqt6.ps1
 ```
 
-### Optie 3: Als module
+## 🔧 Build Executable
+
 ```bash
-python -m magic_time_studio.main
+# Installeer PyInstaller
+pip install pyinstaller
+
+# Build executable
+python scripts\build_exe.py
 ```
 
-### Dependencies installeren
+## 📚 Documentatie
+
+- `docs/README.md` - Project overzicht
+- `docs/BUILD_INSTRUCTIONS.md` - Build instructies
+- `docs/PYQT6_MIGRATION.md` - PyQt6 migratie details
+- `docs/PYQT6_README.md` - PyQt6 specifieke documentatie
+
+## 🧪 Tests
+
 ```bash
-pip install -r magic_time_studio/requirements.txt
+# Voer tests uit
+python tests\test_pyqt6.py
+python tests\test_exe_ffmpeg.py
 ```
-
-## ✨ Belangrijkste Features
-
-### 🎯 Identieke GUI
-- **Exact dezelfde interface** als versie 1.9.4
-- **Vertrouwde layout** met linker en rechter panel
-- **Alle originele knoppen** en functionaliteit
-- **Zelfde kleuren en styling**
-
-### 🔧 Modulaire Architectuur
-- **Core modules** voor configuratie, logging en utilities
-- **UI modules** voor alle interface componenten
-- **Processing modules** voor audio, video en vertaling
-- **Data models** voor wachtrij en tracking
-
-### 🚀 Geavanceerde Functionaliteit
-- **Whisper AI** voor automatische transcriptie
-- **LibreTranslate** voor vertaling
-- **FFmpeg** voor audio/video verwerking
-- **Batch verwerking** voor meerdere bestanden
-- **Real-time logging** met live viewer
-- **Thema ondersteuning** (dark, light, blue)
-- **Performance monitoring**
-
-### 📊 Output Formaten
-- **SRT** - Standaard ondertiteling
-- **VTT** - Web video ondertiteling
-- **JSON** - Gestructureerde data
-- **TXT** - Plain text transcriptie
-
-## 🔄 Migratie van v1.9.4
-
-### Wat is hetzelfde:
-- ✅ **Identieke GUI** en gebruikerservaring
-- ✅ **Alle originele functionaliteit**
-- ✅ **Zelfde configuratie opties**
-- ✅ **Zelfde output formaten**
-
-### Wat is verbeterd:
-- ✅ **Modulaire code structuur**
-- ✅ **Betere error handling**
-- ✅ **Thread-safe operaties**
-- ✅ **Uitbreidbare architectuur**
-- ✅ **Moderne Python best practices**
-
-## 📋 Vereisten
-
-- **Python 3.8+**
-- **FFmpeg** (automatisch gedetecteerd of handmatig geïnstalleerd)
-- **openai-whisper** (automatisch geïnstalleerd)
-- **requests** (voor API calls)
 
 ## 🛠️ Ontwikkeling
 
-### Project structuur begrijpen
-```bash
-# Core functionaliteit
-magic_time_studio/core/           # Configuratie, logging, utilities
+### Project Structuur
 
-# Gebruikersinterface
-magic_time_studio/ui/             # Alle GUI componenten
+- **core/**: Kern functionaliteit (config, logging, utils)
+- **models/**: Data modellen (performance tracker, processing queue)
+- **processing/**: Verwerking modules (whisper, translator, audio/video)
+- **ui_pyqt6/**: PyQt6 gebruikersinterface
+  - **components/**: UI componenten (panels, menu manager)
+  - **features/**: Geavanceerde features (drag & drop, charts, plugins)
 
-# Verwerking
-magic_time_studio/processing/     # Audio, video, transcriptie, vertaling
+### Belangrijke Bestanden
 
-# Data modellen
-magic_time_studio/models/         # Wachtrij, tracking, monitoring
-```
+- `magic_time_studio/main_pyqt6.py` - Hoofdapplicatie
+- `magic_time_studio/run.py` - Start script
+- `magic_time_studio/ui_pyqt6/main_window.py` - Hoofdvenster
+- `magic_time_studio/ui_pyqt6/config_window.py` - Configuratie venster
 
-### Nieuwe module toevoegen
-1. Maak een nieuwe Python file in de juiste directory
-2. Voeg `__init__.py` toe voor package imports
-3. Update de relevante `__init__.py` bestanden
-4. Test de integratie
+## 📦 Distributie
 
-## 📝 Changelog
+De applicatie kan worden gebouwd als standalone executable met:
 
-### v2.0.0 (Huidige versie)
-- ✅ **Complete modulaire herstructurering**
-- ✅ **Identieke GUI als v1.9.4**
-- ✅ **Verbeterde error handling**
-- ✅ **Thread-safe operaties**
-- ✅ **Moderne Python architectuur**
-
-### v1.9.4 (Origineel)
-- Originele monolithische versie
-- Behouden voor referentie en vergelijking
+- FFmpeg gebundeld
+- PyQt6 runtime
+- Whisper modellen
+- Alle dependencies
 
 ## 🤝 Bijdragen
 
 1. Fork het project
-2. Maak een feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit je wijzigingen (`git commit -m 'Add some AmazingFeature'`)
-4. Push naar de branch (`git push origin feature/AmazingFeature`)
+2. Maak een feature branch
+3. Commit je wijzigingen
+4. Push naar de branch
 5. Open een Pull Request
 
 ## 📄 Licentie
 
-Dit project is gelicenseerd onder de MIT License - zie het [LICENSE](LICENSE) bestand voor details.
-
-## 🙏 Dankbetuiging
-
-- **OpenAI Whisper** voor de transcriptie functionaliteit
-- **LibreTranslate** voor de vertaling services
-- **FFmpeg** voor audio/video verwerking
-- **Tkinter** voor de GUI framework
-
----
-
-**Magic Time Studio v2.0** - Professionele video ondertiteling en vertaling met modulaire architectuur! 🎬✨
+Dit project is gelicenseerd onder de MIT License.

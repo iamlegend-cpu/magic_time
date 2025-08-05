@@ -4,12 +4,23 @@ Beheert audio extractie en verwerking met FFmpeg
 """
 
 import os
+import sys
 import subprocess
 import tempfile
 from typing import Dict, Any, Optional, Tuple
-from ..core.logging import logger
-from ..core.config import config_manager
-from ..core.utils import safe_basename
+
+# Absolute imports in plaats van relative imports
+try:
+    from magic_time_studio.core.logging import logger
+    from magic_time_studio.core.config import config_manager
+    from magic_time_studio.core.utils import safe_basename, find_executable_in_bundle, get_bundle_dir, create_progress_bar
+except ImportError:
+    # Fallback voor directe import
+    import sys
+    sys.path.append('..')
+    from core.logging import logger
+    from core.config import config_manager
+    from core.utils import safe_basename, find_executable_in_bundle, get_bundle_dir, create_progress_bar
 
 class AudioProcessor:
     """Processor voor audio extractie en verwerking"""
@@ -21,6 +32,31 @@ class AudioProcessor:
         
     def _find_ffmpeg(self) -> str:
         """Zoek FFmpeg executable"""
+        # Eerst zoeken in de bundle (voor PyInstaller exe)
+        bundle_ffmpeg = find_executable_in_bundle("ffmpeg.exe")
+        if bundle_ffmpeg:
+            try:
+                result = subprocess.run([bundle_ffmpeg, "-version"], 
+                                      capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    logger.log_debug(f"✅ FFmpeg gevonden in bundle: {bundle_ffmpeg}")
+                    return bundle_ffmpeg
+            except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+                pass
+        
+        # Zoek in _internal/assets directory (PyInstaller bundle)
+        bundle_dir = get_bundle_dir()
+        internal_ffmpeg = os.path.join(bundle_dir, "_internal", "assets", "ffmpeg.exe")
+        if os.path.exists(internal_ffmpeg):
+            try:
+                result = subprocess.run([internal_ffmpeg, "-version"], 
+                                      capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    logger.log_debug(f"✅ FFmpeg gevonden in _internal/assets: {internal_ffmpeg}")
+                    return internal_ffmpeg
+            except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+                pass
+        
         # Probeer verschillende locaties
         possible_paths = [
             "ffmpeg",  # In PATH
@@ -43,8 +79,8 @@ class AudioProcessor:
         return None
     
     def extract_audio_from_video(self, video_path: str, output_dir: Optional[str] = None,
-                                audio_format: str = "wav") -> Dict[str, Any]:
-        """Extracteer audio uit video bestand"""
+                                audio_format: str = "wav", progress_callback: Optional[callable] = None) -> Dict[str, Any]:
+        """Extracteer audio uit video bestand met real-time progress updates"""
         try:
             if not self.ffmpeg_path:
                 return {"error": "FFmpeg niet gevonden"}
@@ -66,7 +102,7 @@ class AudioProcessor:
             
             logger.log_debug(f"🎵 Start audio extractie: {safe_basename(video_path)}")
             
-            # FFmpeg commando voor audio extractie
+            # FFmpeg commando voor audio extractie met progress output
             cmd = [
                 self.ffmpeg_path,
                 "-i", video_path,
@@ -74,29 +110,118 @@ class AudioProcessor:
                 "-acodec", "pcm_s16le" if audio_format == "wav" else "copy",
                 "-ar", "16000",  # Sample rate voor Whisper
                 "-ac", "1",  # Mono
+                "-progress", "pipe:1",  # Stuur progress naar stdout
                 "-y",  # Overschrijf bestaand bestand
                 audio_path
             ]
             
-            # Voer FFmpeg uit
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-            
-            if result.returncode == 0 and os.path.exists(audio_path):
-                # Krijg bestandsgrootte
-                file_size = os.path.getsize(audio_path)
+            # Voer FFmpeg uit met real-time output
+            if progress_callback:
+                # Gebruik Popen voor real-time output
+                quoted_cmd = []
+                for arg in cmd:
+                    if " " in arg and not arg.startswith('"'):
+                        quoted_cmd.append(f'"{arg}"')
+                    else:
+                        quoted_cmd.append(arg)
                 
-                logger.log_debug(f"✅ Audio extractie voltooid: {safe_basename(audio_path)}")
+                process = subprocess.Popen(
+                    " ".join(quoted_cmd),
+                    shell=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    bufsize=1,
+                    universal_newlines=True
+                )
                 
-                return {
-                    "success": True,
-                    "audio_path": audio_path,
-                    "file_size": file_size,
-                    "format": audio_format
-                }
+                # Lees real-time output
+                while True:
+                    output = process.stdout.readline()
+                    if output == '' and process.poll() is not None:
+                        break
+                    if output:
+                        # Parse progress uit FFmpeg output
+                        if "out_time_ms=" in output:
+                            try:
+                                time_ms = int(output.split("=")[1])
+                                # Schat progress gebaseerd op tijd (niet perfect maar werkt)
+                                if progress_callback:
+                                    # Maak een voortgangsbalk gebaseerd op tijd
+                                    # Schat totale duur op 2 minuten als fallback
+                                    estimated_duration = 120.0  # 2 minuten
+                                    progress = min(time_ms / 1000.0 / estimated_duration, 0.99)
+                                    progress_bar = create_progress_bar(progress, 40, safe_basename(video_path))
+                                    progress_callback(f"🎵 {progress_bar}")
+                            except:
+                                pass
+                        elif "frame=" in output:
+                            # Stuur frame info door als voortgangsbalk
+                            if progress_callback:
+                                # Parse frame info voor progress
+                                try:
+                                    if "fps=" in output and "time=" in output:
+                                        # Extract fps en time info
+                                        fps_part = output.split("fps=")[1].split()[0]
+                                        time_part = output.split("time=")[1].split()[0]
+                                        progress_callback(f"🎵 FFmpeg: {fps_part} fps, {time_part}")
+                                    else:
+                                        progress_callback(f"🎵 FFmpeg: {output.strip()}")
+                                except:
+                                    progress_callback(f"🎵 FFmpeg: {output.strip()}")
+                
+                # Wacht tot proces klaar is
+                return_code = process.wait()
+                
+                if return_code == 0 and os.path.exists(audio_path):
+                    # Krijg bestandsgrootte
+                    file_size = os.path.getsize(audio_path)
+                    
+                    logger.log_debug(f"✅ Audio extractie voltooid: {safe_basename(audio_path)}")
+                    
+                    return {
+                        "success": True,
+                        "audio_path": audio_path,
+                        "file_size": file_size,
+                        "format": audio_format
+                    }
+                else:
+                    error_msg = process.stderr.read() if process.stderr else "Onbekende FFmpeg fout"
+                    logger.log_debug(f"❌ Audio extractie gefaald: {error_msg}")
+                    return {"error": f"FFmpeg fout: {error_msg}"}
             else:
-                error_msg = result.stderr if result.stderr else "Onbekende FFmpeg fout"
-                logger.log_debug(f"❌ Audio extractie gefaald: {error_msg}")
-                return {"error": f"FFmpeg fout: {error_msg}"}
+                # Originele methode zonder real-time output
+                quoted_cmd = []
+                for arg in cmd:
+                    if " " in arg and not arg.startswith('"'):
+                        quoted_cmd.append(f'"{arg}"')
+                    else:
+                        quoted_cmd.append(arg)
+                
+                result = subprocess.run(
+                    " ".join(quoted_cmd), 
+                    shell=True, 
+                    capture_output=True, 
+                    text=True, 
+                    timeout=300
+                )
+                
+                if result.returncode == 0 and os.path.exists(audio_path):
+                    # Krijg bestandsgrootte
+                    file_size = os.path.getsize(audio_path)
+                    
+                    logger.log_debug(f"✅ Audio extractie voltooid: {safe_basename(audio_path)}")
+                    
+                    return {
+                        "success": True,
+                        "audio_path": audio_path,
+                        "file_size": file_size,
+                        "format": audio_format
+                    }
+                else:
+                    error_msg = result.stderr if result.stderr else "Onbekende FFmpeg fout"
+                    logger.log_debug(f"❌ Audio extractie gefaald: {error_msg}")
+                    return {"error": f"FFmpeg fout: {error_msg}"}
                 
         except subprocess.TimeoutExpired:
             logger.log_debug("❌ Audio extractie timeout")
@@ -114,15 +239,28 @@ class AudioProcessor:
             if not os.path.exists(video_path):
                 return {"error": "Video bestand niet gevonden"}
             
-            # FFmpeg commando voor video info
+            # FFmpeg commando voor video info (alleen info, geen verwerking)
             cmd = [
                 self.ffmpeg_path,
-                "-i", video_path,
-                "-f", "null",
-                "-"
+                "-i", video_path
             ]
             
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            # Gebruik shell=True voor betere bestandsnaam handling
+            # Quote het bestandspad om spaties te handlen
+            quoted_cmd = []
+            for arg in cmd:
+                if " " in arg and not arg.startswith('"'):
+                    quoted_cmd.append(f'"{arg}"')
+                else:
+                    quoted_cmd.append(arg)
+            
+            result = subprocess.run(
+                " ".join(quoted_cmd), 
+                shell=True, 
+                capture_output=True, 
+                text=True, 
+                timeout=60
+            )
             
             # Parse FFmpeg output voor informatie
             info = self._parse_ffmpeg_info(result.stderr)

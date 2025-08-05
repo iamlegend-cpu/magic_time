@@ -16,55 +16,81 @@ DEFAULT_CONFIG = {
     "font_size": 9,
     "worker_count": 4,
     "theme": "dark",
+    "debug_mode": False,  # Zet debug mode uit standaard
     "logging_config": {
-        "debug": True,
+        "debug": False,  # Zet debug logging uit standaard
         "info": True,
         "warning": True,
         "error": True
+    },
+    "visible_panels": {
+        "settings": True,
+        "files": True,
+        "processing": True,
+        "charts": True,
+        "batch": True,
+        "plugins": True,
+        "completed": True
     }
 }
 
 # Thema kleuren
 THEMA_KLEUREN = {
     "light": {
-        "bg": "#f5f5f5",
-        "fg": "#2c2c2c",
-        "accent": "#e8e8e8",
-        "frame": "#fafafa",
-        "knop": "#e8e8e8",
-        "knop_fg": "#2c2c2c",
-        "main_bg": "#f0f8f0",
-        "panel_bg": "#f5faf5",
-    },
-    "dark": {
         "bg": "#2a2a2a",
-        "fg": "#e0e0e0",
+        "fg": "#ffffff",
         "accent": "#404040",
         "frame": "#353535",
         "knop": "#505050",
-        "knop_fg": "#e0e0e0",
+        "knop_fg": "#ffffff",
         "main_bg": "#252525",
         "panel_bg": "#303030",
+        "knop_start": "#4caf50",
+        "knop_stop": "#d32f2f",
+        "knop_delete_all": "#d32f2f",
+        "knop_special_fg": "#ffffff"
+    },
+    "dark": {
+        "bg": "#2a2a2a",
+        "fg": "#ffffff",
+        "accent": "#404040",
+        "frame": "#353535",
+        "knop": "#505050",
+        "knop_fg": "#ffffff",
+        "main_bg": "#252525",
+        "panel_bg": "#303030",
+        "knop_start": "#4caf50",
+        "knop_stop": "#d32f2f",
+        "knop_delete_all": "#d32f2f",
+        "knop_special_fg": "#ffffff"
     },
     "blue": {
-        "bg": "#e3f2fd",
-        "fg": "#1565c0",
-        "accent": "#bbdefb",
-        "frame": "#e1f5fe",
-        "knop": "#2196f3",
+        "bg": "#1a237e",
+        "fg": "#ffffff",
+        "accent": "#3949ab",
+        "frame": "#283593",
+        "knop": "#3f51b5",
         "knop_fg": "#ffffff",
-        "main_bg": "#ffffff",
-        "panel_bg": "#f0f8ff",
+        "main_bg": "#0d47a1",
+        "panel_bg": "#1565c0",
+        "knop_start": "#4caf50",
+        "knop_stop": "#d32f2f",
+        "knop_delete_all": "#d32f2f",
+        "knop_special_fg": "#ffffff"
     },
     "green": {
-        "bg": "#e8f5e8",
-        "fg": "#2e7d32",
-        "accent": "#c8e6c9",
-        "frame": "#e8f5e8",
+        "bg": "#1b5e20",
+        "fg": "#ffffff",
+        "accent": "#2e7d32",
+        "frame": "#388e3c",
         "knop": "#4caf50",
         "knop_fg": "#ffffff",
-        "main_bg": "#ffffff",
-        "panel_bg": "#f1f8e9",
+        "main_bg": "#0d4f14",
+        "panel_bg": "#1565c0",
+        "knop_start": "#4caf50",
+        "knop_stop": "#d32f2f",
+        "knop_delete_all": "#d32f2f",
+        "knop_special_fg": "#ffffff"
     },
 }
 
@@ -72,12 +98,13 @@ class ConfigManager:
     """Beheert de configuratie van de applicatie"""
     
     def __init__(self):
-        self.config_path = os.path.join(self.get_user_data_dir(), "config.json")
-        self.config = self.load_configuration()
+        # Plaats config.json in de hoofdfolder van het programma
+        self.config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.json")
         self.env_vars = self.load_env_variables()
+        self.config = self.load_configuration()
         
     def get_user_data_dir(self) -> str:
-        """Krijg de gebruiker data directory"""
+        """Krijg de gebruiker data directory (niet meer gebruikt voor config.json)"""
         app_name = "MagicTimeStudio"
         if os.name == 'nt':  # Windows
             app_data = os.getenv('APPDATA')
@@ -94,16 +121,19 @@ class ConfigManager:
             # Start met standaard configuratie
             config = DEFAULT_CONFIG.copy()
             
-            # Laad .env variabelen
+            # Laad .env variabelen via _load_config_from_env (zorgt voor juiste mapping)
             env_config = self._load_config_from_env()
             config.update(env_config)
-            
+            # Forceer juiste mapping voor Whisper model en device
+            if "DEFAULT_WHISPER_MODEL" in self.env_vars:
+                config["default_whisper_model"] = self.env_vars["DEFAULT_WHISPER_MODEL"]
+            if "WHISPER_DEVICE" in self.env_vars:
+                config["whisper_device"] = self.env_vars["WHISPER_DEVICE"]
             # Laad JSON configuratie (overschrijft .env)
             if os.path.exists(self.config_path):
                 with open(self.config_path, "r", encoding="utf-8") as f:
                     json_config = json.load(f)
                 config.update(json_config)
-            
             return config
         except Exception as e:
             print(f"❌ Fout bij laden configuratie: {e}")
@@ -114,8 +144,8 @@ class ConfigManager:
         config = {}
         
         # Whisper configuratie
-        config["default_whisper_model"] = self.get_env("DEFAULT_WHISPER_MODEL", "base")
-        config["whisper_device"] = self.get_env("WHISPER_DEVICE", "cpu")
+        config["default_whisper_model"] = self.get_env("DEFAULT_WHISPER_MODEL", "large")
+        config["whisper_device"] = self.get_env("WHISPER_DEVICE", "cuda")
         
         # Applicatie configuratie
         config["theme"] = self.get_env("DEFAULT_THEME", "dark")
@@ -135,7 +165,7 @@ class ConfigManager:
         
         # Performance configuratie
         config["cpu_limit_percentage"] = int(self.get_env("CPU_LIMIT_PERCENTAGE", "80"))
-        config["memory_limit_mb"] = int(self.get_env("MEMORY_LIMIT_MB", "2048"))
+        config["memory_limit_mb"] = int(self.get_env("MEMORY_LIMIT_MB", "8192"))
         
         # Output configuratie
         config["auto_create_output_dir"] = self.get_env("AUTO_CREATE_OUTPUT_DIR", "true").lower() == "true"
@@ -155,7 +185,7 @@ class ConfigManager:
             Path.cwd() / ".env",  # Huidige directory
             Path.home() / ".env",  # Home directory
         ]
-        
+        print(f"[DEBUG] Zoek naar .env op: {env_paths}")
         for env_path in env_paths:
             if env_path.exists():
                 try:
@@ -169,9 +199,10 @@ class ConfigManager:
                                     key = key.strip()
                                     value = value.strip().strip('"').strip("'")
                                     env_vars[key] = value
-                    logging.debug(f"✅ Environment variables geladen van: {env_path}")
+                    print(f"[DEBUG] Environment variables geladen van: {env_path}")
                 except Exception as e:
-                    logging.warning(f"⚠️ Kon .env bestand niet laden: {env_path} - {e}")
+                    print(f"[DEBUG] ⚠️ Kon .env bestand niet laden: {env_path} - {e}")
+        print(f"[DEBUG] Gevonden env_vars: {env_vars}")
         
         return env_vars
     
@@ -207,6 +238,38 @@ class ConfigManager:
     def get_available_themes(self) -> list:
         """Krijg lijst van beschikbare thema's"""
         return list(THEMA_KLEUREN.keys())
+    
+    def is_debug_mode(self) -> bool:
+        """Controleer of debug mode aan staat"""
+        return self.get("debug_mode", False)
+    
+    def is_panel_visible(self, panel_name: str) -> bool:
+        """Controleer of een panel zichtbaar is"""
+        visible_panels = self.get("visible_panels", {})
+        return visible_panels.get(panel_name, True)
+    
+    def set_panel_visibility(self, panel_name: str, visible: bool) -> None:
+        """Stel panel zichtbaarheid in"""
+        visible_panels = self.get("visible_panels", {})
+        visible_panels[panel_name] = visible
+        self.set("visible_panels", visible_panels)
+    
+    def get_visible_panels(self) -> Dict[str, bool]:
+        """Krijg alle panel zichtbaarheid instellingen"""
+        return self.get("visible_panels", {})
+
+    def is_memory_within_limit(self) -> bool:
+        """Controleer of het geheugengebruik binnen de limiet blijft"""
+        try:
+            import psutil
+            limit_mb = self.config.get("memory_limit_mb", 8192)
+            process = psutil.Process()
+            mem_mb = process.memory_info().rss / 1024 / 1024
+            return mem_mb < limit_mb
+        except ImportError:
+            return True  # Kan niet controleren zonder psutil
+        except Exception:
+            return True
 
 # Globale configuratie instantie
 config_manager = ConfigManager()
@@ -228,3 +291,9 @@ def sla_thema_op(gekozen_thema: str):
     """Sla thema op in configuratie"""
     config_manager.set("theme", gekozen_thema)
     config_manager.save_configuration() 
+
+if __name__ == "__main__":
+    print("[TEST] Start .env test")
+    cm = ConfigManager()
+    print(f"[TEST] Gevonden env_vars: {cm.env_vars}")
+    print(f"[TEST] config['default_whisper_model']: {cm.get('default_whisper_model', 'large')}") 

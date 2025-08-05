@@ -34,7 +34,8 @@ class Translator:
             "zh": "Chinees"
         }
         
-        self.default_server = config_manager.get_env("LIBRETRANSLATE_SERVER", "http://100.90.127.78:5000")
+        # Haal server alleen uit env, geen default IP meer
+        self.default_server = None
         self.current_service = "libretranslate"
         
     def set_service(self, service: str):
@@ -75,10 +76,21 @@ class Translator:
     def _translate_libretranslate(self, text: str, source_lang: str, target_lang: str) -> Dict[str, Any]:
         """Vertaal met LibreTranslate"""
         try:
-            server_url = config_manager.get("libretranslate_server", self.default_server)
+            # Haal server uit env/config, geen fallback naar IP
+            server_url = config_manager.get_env("LIBRETRANSLATE_SERVER", None)
+            if not server_url:
+                logger.log_debug("❌ LIBRETRANSLATE_SERVER niet ingesteld in .env bestand!")
+                return {"error": "LIBRETRANSLATE_SERVER niet ingesteld in .env bestand!"}
             
+            # Voeg protocol toe als het ontbreekt
+            if not server_url.startswith(('http://', 'https://')):
+                server_url = f"http://{server_url}"
+                logger.log_debug(f"🌐 Server URL aangepast: {server_url}")
+            
+            # Haal chunk limiet uit env, standaard 10000
+            max_chunk_size = int(config_manager.get_env("LIBRETRANSLATE_MAX_CHARS", "10000"))
             # Split tekst in chunks als te lang
-            chunks = self._split_text_into_chunks(text, max_chunk_size=5000)
+            chunks = self._split_text_into_chunks(text, max_chunk_size=max_chunk_size)
             translated_chunks = []
             
             for i, chunk in enumerate(chunks):
@@ -118,6 +130,12 @@ class Translator:
                 "chunks": len(chunks)
             }
             
+        except requests.exceptions.ConnectionError as e:
+            logger.log_debug(f"❌ LibreTranslate verbinding fout: {e}")
+            return {"error": f"Kan geen verbinding maken met LibreTranslate server. Controleer of de server draait."}
+        except requests.exceptions.Timeout as e:
+            logger.log_debug(f"❌ LibreTranslate timeout: {e}")
+            return {"error": f"LibreTranslate server reageert niet binnen de timeout."}
         except requests.exceptions.RequestException as e:
             logger.log_debug(f"❌ LibreTranslate netwerk fout: {e}")
             return {"error": f"Netwerk fout: {e}"}
@@ -127,7 +145,7 @@ class Translator:
     
 
     
-    def _split_text_into_chunks(self, text: str, max_chunk_size: int = 5000) -> List[str]:
+    def _split_text_into_chunks(self, text: str, max_chunk_size: int = 10000) -> List[str]:
         """Split tekst in chunks voor vertaling"""
         if len(text) <= max_chunk_size:
             return [text]
@@ -151,45 +169,141 @@ class Translator:
         
         return chunks
     
+    def _create_translation_batches(self, transcriptions: List[Dict[str, Any]], max_chunk_size: int) -> List[List[Dict[str, Any]]]:
+        """Maak batches van transcriptie segmenten voor efficiënte vertaling"""
+        batches = []
+        current_batch = []
+        current_size = 0
+        
+        for segment in transcriptions:
+            text = segment.get("text", "")
+            text_length = len(text)
+            
+            # Als deze tekst de batch te groot maakt, start een nieuwe batch
+            if current_size + text_length > max_chunk_size and current_batch:
+                batches.append(current_batch)
+                current_batch = [segment]
+                current_size = text_length
+            else:
+                current_batch.append(segment)
+                current_size += text_length
+        
+        # Voeg laatste batch toe
+        if current_batch:
+            batches.append(current_batch)
+        
+        return batches
+    
+    def _split_translation_back_to_segments(self, translated_text: str, original_batch: List[Dict[str, Any]]) -> List[str]:
+        """Split vertaalde tekst terug naar originele segmenten"""
+        if not original_batch:
+            return []
+        
+        # Als er maar 1 segment is, return de hele vertaalde tekst
+        if len(original_batch) == 1:
+            return [translated_text]
+        
+        # Split de vertaalde tekst op basis van de originele segment lengtes
+        segments = []
+        remaining_text = translated_text
+        
+        for i, segment in enumerate(original_batch):
+            original_text = segment.get("text", "")
+            
+            if not original_text.strip():
+                segments.append("")
+                continue
+            
+            # Probeer de vertaalde tekst te splitsen op basis van de originele lengte
+            # Dit is een eenvoudige benadering - voor betere resultaten zou je NLP kunnen gebruiken
+            if i == len(original_batch) - 1:
+                # Laatste segment krijgt alle overgebleven tekst
+                segments.append(remaining_text.strip())
+            else:
+                # Schat de lengte van dit segment in de vertaling
+                # Gebruik een eenvoudige ratio benadering
+                original_length = len(original_text)
+                total_original_length = sum(len(s.get("text", "")) for s in original_batch)
+                
+                if total_original_length > 0:
+                    estimated_length = int((original_length / total_original_length) * len(translated_text))
+                    estimated_length = max(estimated_length, 10)  # Minimaal 10 karakters
+                    
+                    # Zoek naar een natuurlijke splitsing (punt, komma, etc.)
+                    split_point = min(estimated_length, len(remaining_text))
+                    
+                    # Zoek naar het dichtstbijzijnde punt of komma
+                    for j in range(max(0, split_point - 50), min(len(remaining_text), split_point + 50)):
+                        if remaining_text[j] in '.!?':
+                            split_point = j + 1
+                            break
+                    
+                    segment_text = remaining_text[:split_point].strip()
+                    remaining_text = remaining_text[split_point:].strip()
+                    segments.append(segment_text)
+                else:
+                    segments.append("")
+        
+        return segments
+    
     def translate_transcriptions(self, transcriptions: List[Dict[str, Any]], 
                                 source_lang: str, target_lang: str,
                                 service: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Vertaal transcriptie segmenten"""
+        """Vertaal transcriptie segmenten in batches"""
         try:
             if not transcriptions:
                 return []
             
             logger.log_debug(f"🌐 Start vertaling van {len(transcriptions)} transcriptie segmenten")
             
+            # Groepeer zinnen in batches van max 10.000 karakters
+            max_chunk_size = int(config_manager.get_env("LIBRETRANSLATE_MAX_CHARS", "10000"))
+            batches = self._create_translation_batches(transcriptions, max_chunk_size)
+            
             translated_transcriptions = []
             
-            for i, segment in enumerate(transcriptions):
-                original_text = segment.get("text", "")
+            for batch_idx, batch in enumerate(batches):
+                logger.log_debug(f"🌐 Vertaal batch {batch_idx+1}/{len(batches)} ({len(batch)} segmenten)")
                 
-                if not original_text.strip():
-                    translated_transcriptions.append(segment)
+                # Combineer alle teksten in deze batch
+                combined_text = " ".join([segment.get("text", "") for segment in batch])
+                
+                if not combined_text.strip():
+                    # Voeg originele segmenten toe als er geen tekst is
+                    translated_transcriptions.extend(batch)
                     continue
                 
-                # Vertaal tekst
+                # Vertaal de gecombineerde tekst
                 translation_result = self.translate_text(
-                    original_text, source_lang, target_lang, service
+                    combined_text, source_lang, target_lang, service
                 )
                 
                 if translation_result.get("success"):
-                    # Update segment met vertaling
-                    segment["translated_text"] = translation_result["translated_text"]
-                    segment["translation_service"] = translation_result["service"]
+                    # Split de vertaalde tekst terug in segmenten
+                    translated_segments = self._split_translation_back_to_segments(
+                        translation_result["translated_text"], batch
+                    )
+                    
+                    # Update segmenten met vertalingen
+                    for i, segment in enumerate(batch):
+                        if i < len(translated_segments):
+                            segment["translated_text"] = translated_segments[i]
+                        else:
+                            segment["translated_text"] = segment.get("text", "")
+                        segment["translation_service"] = translation_result["service"]
+                        
+                    translated_transcriptions.extend(batch)
                 else:
-                    # Fallback naar origineel
-                    segment["translated_text"] = original_text
-                    segment["translation_service"] = "geen"
-                    logger.log_debug(f"⚠️ Vertaling gefaald voor segment {i}: {translation_result.get('error')}")
-                
-                translated_transcriptions.append(segment)
+                    # Fallback naar origineel voor deze batch
+                    for segment in batch:
+                        segment["translated_text"] = segment.get("text", "")
+                        segment["translation_service"] = "geen"
+                    translated_transcriptions.extend(batch)
+                    logger.log_debug(f"⚠️ Vertaling gefaald voor batch {batch_idx}: {translation_result.get('error')}")
                 
                 # Progress logging
-                if (i + 1) % 10 == 0:
-                    logger.log_debug(f"📊 Vertaling voortgang: {i+1}/{len(transcriptions)}")
+                if (batch_idx + 1) % 5 == 0:
+                    logger.log_debug(f"📊 Vertaling voortgang: {batch_idx+1}/{len(batches)} batches")
             
             logger.log_debug(f"✅ Vertaling van transcripties voltooid")
             return translated_transcriptions

@@ -1,8 +1,14 @@
 """
 Core modules voor Magic Time Studio
-Bevat configuratie, logging en utility functies
 """
 
-from .config import *
-from .logging import *
-from .utils import * 
+from .config import config_manager
+from .logging import logger
+from .utils import *
+from .stop_manager import stop_manager
+
+__all__ = [
+    'config_manager',
+    'logger', 
+    'stop_manager'
+] 

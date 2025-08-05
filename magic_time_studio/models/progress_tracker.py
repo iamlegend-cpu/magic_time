@@ -5,15 +5,13 @@ Progress tracking voor Magic Time Studio
 import time
 from datetime import timedelta
 from typing import Optional
-import tkinter as tk
-from tkinter import ttk
-from ..core.utils import safe_config
-from ..core.logging import logger
+from magic_time_studio.core.utils import safe_config
+from magic_time_studio.core.logging import logger
 
 class ProgressTracker:
     """Beheert voortgang tracking voor video verwerking"""
     
-    def __init__(self, progress_bar: Optional[ttk.Progressbar] = None, status_label: Optional[tk.Label] = None):
+    def __init__(self, progress_bar: Optional[object] = None, status_label: Optional[object] = None):
         self.progress_bar = progress_bar
         self.status_label = status_label
         self.start_time = None
@@ -21,7 +19,7 @@ class ProgressTracker:
         self.completed_blocks = 0
         self.failed_blocks = 0
         
-    def set_widgets(self, progress_bar: Optional[ttk.Progressbar] = None, status_label: Optional[tk.Label] = None) -> None:
+    def set_widgets(self, progress_bar: Optional[object] = None, status_label: Optional[object] = None) -> None:
         """Zet de widgets voor voortgang tracking"""
         if progress_bar is not None:
             self.progress_bar = progress_bar
@@ -45,9 +43,13 @@ class ProgressTracker:
         if self.total_blocks > 0 and self.start_time is not None:
             percentage = (completed_blocks / self.total_blocks) * 100
             
-            # Update progress bar
-            if self.progress_bar is not None and hasattr(self.progress_bar, "__setitem__"):
-                self.progress_bar["value"] = percentage
+            # Update progress bar (PyQt6 QProgressBar)
+            if self.progress_bar is not None:
+                if hasattr(self.progress_bar, "setValue"):
+                    self.progress_bar.setValue(int(percentage))
+                elif hasattr(self.progress_bar, "setRange"):
+                    self.progress_bar.setRange(0, 100)
+                    self.progress_bar.setValue(int(percentage))
             
             # Bereken tijd
             elapsed_time = time.time() - self.start_time
@@ -65,9 +67,12 @@ class ProgressTracker:
             else:
                 status_text = f"Voortgang: {percentage:.1f}% | Blok {completed_blocks}/{self.total_blocks} | Verstreken: {elapsed_str}"
             
-            # Update status label
+            # Update status label (PyQt6 QLabel)
             if self.status_label is not None:
-                safe_config(self.status_label, text=status_text)
+                if hasattr(self.status_label, "setText"):
+                    self.status_label.setText(status_text)
+                else:
+                    safe_config(self.status_label, text=status_text)
     
     def complete(self) -> None:
         """Markeer als voltooid"""
@@ -79,7 +84,10 @@ class ProgressTracker:
             status_text = "✅ Voltooid!"
         
         if self.status_label is not None:
-            safe_config(self.status_label, text=status_text)
+            if hasattr(self.status_label, "setText"):
+                self.status_label.setText(status_text)
+            else:
+                safe_config(self.status_label, text=status_text)
         
         logger.log_debug("✅ Progress tracking voltooid")
     
@@ -91,10 +99,16 @@ class ProgressTracker:
         self.failed_blocks = 0
         
         if self.progress_bar is not None:
-            safe_config(self.progress_bar, value=0)
+            if hasattr(self.progress_bar, "setValue"):
+                self.progress_bar.setValue(0)
+            else:
+                safe_config(self.progress_bar, value=0)
         
         if self.status_label is not None:
-            safe_config(self.status_label, text="Klaar voor verwerking")
+            if hasattr(self.status_label, "setText"):
+                self.status_label.setText("Klaar voor verwerking")
+            else:
+                safe_config(self.status_label, text="Klaar voor verwerking")
     
     def get_progress_percentage(self) -> float:
         """Krijg het voortgangspercentage"""

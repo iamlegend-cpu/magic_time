@@ -7,6 +7,6 @@ __version__ = "2.0.0"
 __author__ = "Magic Time Studio Team"
 
 # Import alle belangrijke modules
-from .core.config import *
-from .core.logging import *
-from .core.utils import * 
+from magic_time_studio.core.config import *
+from magic_time_studio.core.logging import *
+from magic_time_studio.core.utils import * 
