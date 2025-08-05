@@ -17,6 +17,7 @@ DEFAULT_CONFIG = {
     "worker_count": 4,
     "theme": "dark",
     "debug_mode": False,  # Zet debug mode uit standaard
+    "preserve_original_subtitles": True,  # Behoud originele ondertitels standaard
     "logging_config": {
         "debug": False,  # Zet debug logging uit standaard
         "info": True,

@@ -377,13 +377,21 @@ class VideoProcessor:
     
     def add_subtitles_to_video(self, video_path: str, subtitle_text: str, 
                               output_path: Optional[str] = None, 
-                              progress_callback: Optional[callable] = None) -> Dict[str, Any]:
+                              progress_callback: Optional[callable] = None,
+                              settings: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Voeg ondertitels toe aan video bestand met real-time progress updates"""
         try:
             if not os.path.exists(video_path):
                 return {"error": "Video bestand niet gevonden"}
             
             logger.log_debug(f"🎬 Start ondertitels toevoegen: {safe_basename(video_path)}")
+            
+            # Controleer of originele ondertitels behouden moeten worden
+            preserve_original_subtitles = True  # Standaard behouden
+            if settings:
+                preserve_original_subtitles = settings.get("preserve_original_subtitles", True)
+            
+            logger.log_debug(f"📝 Originele ondertitels behouden: {preserve_original_subtitles}")
             
             # Genereer output pad als niet opgegeven
             if not output_path:
@@ -418,15 +426,35 @@ class VideoProcessor:
                 # Escape speciale karakters in de tekst
                 escaped_text = subtitle_text.replace("'", "\\'").replace('"', '\\"')
                 
-                cmd = [
-                    'ffmpeg',
-                    '-i', video_path,
-                    '-vf', f'drawtext=text=\'{escaped_text}\':fontsize=24:fontcolor=white:box=1:boxcolor=black@0.5:x=(w-text_w)/2:y=h-text_h-10',
-                    '-c:a', 'copy',
-                    '-progress', 'pipe:1',  # Stuur progress naar stdout
-                    '-y',  # Overschrijf output bestand
-                    output_path
-                ]
+                # Bepaal FFmpeg commando op basis van originele ondertitels optie
+                if preserve_original_subtitles:
+                    # Behoud originele ondertitels - voeg nieuwe toe als extra stream
+                    logger.log_debug("📝 Behoud originele ondertitels - voeg nieuwe toe als overlay")
+                    cmd = [
+                        'ffmpeg',
+                        '-i', video_path,
+                        '-vf', f'drawtext=text=\'{escaped_text}\':fontsize=24:fontcolor=white:box=1:boxcolor=black@0.5:x=(w-text_w)/2:y=h-text_h-10',
+                        '-c:a', 'copy',
+                        '-c:v', 'libx264',  # Herencode video om ondertitels toe te voegen
+                        '-progress', 'pipe:1',  # Stuur progress naar stdout
+                        '-y',  # Overschrijf output bestand
+                        output_path
+                    ]
+                else:
+                    # Verwijder originele ondertitels - vervang met nieuwe
+                    logger.log_debug("📝 Verwijder originele ondertitels - vervang met nieuwe")
+                    cmd = [
+                        'ffmpeg',
+                        '-i', video_path,
+                        '-vf', f'drawtext=text=\'{escaped_text}\':fontsize=24:fontcolor=white:box=1:boxcolor=black@0.5:x=(w-text_w)/2:y=h-text_h-10',
+                        '-c:a', 'copy',
+                        '-c:v', 'libx264',  # Herencode video
+                        '-map', '0:v:0',  # Alleen video stream
+                        '-map', '0:a',  # Behoud audio streams
+                        '-progress', 'pipe:1',  # Stuur progress naar stdout
+                        '-y',  # Overschrijf output bestand
+                        output_path
+                    ]
                 
                 logger.log_debug(f"🎬 FFmpeg commando: {' '.join(cmd)}")
                 

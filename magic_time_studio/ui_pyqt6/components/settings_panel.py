@@ -24,6 +24,7 @@ class SettingsPanel(QWidget):
     model_changed = pyqtSignal(str)
     language_changed = pyqtSignal(str)
     content_type_changed = pyqtSignal(str)
+    preserve_subtitles_changed = pyqtSignal(bool)
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -35,7 +36,8 @@ class SettingsPanel(QWidget):
             self.translator_combo,
             self.model_combo,
             self.language_combo,
-            self.content_combo
+            self.content_combo,
+            self.preserve_subtitles_combo
         ]
         
         # Registreer bij ProcessingModeManager
@@ -107,6 +109,24 @@ class SettingsPanel(QWidget):
         
         layout.addLayout(content_layout)
         
+        # Originele ondertitels optie
+        subtitle_layout = QHBoxLayout()
+        subtitle_layout.addWidget(QLabel("📝 Originele ondertitels:"))
+        
+        self.preserve_subtitles_combo = QComboBox()
+        self.preserve_subtitles_combo.addItems([
+            "Behouden", "Verwijderen"
+        ])
+        self.preserve_subtitles_combo.currentTextChanged.connect(self.on_preserve_subtitles_changed)
+        subtitle_layout.addWidget(self.preserve_subtitles_combo)
+        
+        layout.addLayout(subtitle_layout)
+        
+        # Subtitle info label
+        subtitle_info = QLabel("ℹ️ Behoud originele ondertitels in het video bestand")
+        subtitle_info.setStyleSheet("color: #888; font-size: 11px; font-style: italic;")
+        layout.addWidget(subtitle_info)
+        
         # Voeg wat ruimte toe
         layout.addStretch()
     
@@ -128,6 +148,13 @@ class SettingsPanel(QWidget):
         
         # Content type (standaard auto detectie)
         self.content_combo.setCurrentText("Auto detectie")
+        
+        # Originele ondertitels (standaard behouden)
+        preserve_subtitles = config_manager.get("preserve_original_subtitles", True)
+        if preserve_subtitles:
+            self.preserve_subtitles_combo.setCurrentText("Behouden")
+        else:
+            self.preserve_subtitles_combo.setCurrentText("Verwijderen")
     
     def on_translator_changed(self, translator_name: str):
         """Vertaler gewijzigd"""
@@ -153,6 +180,12 @@ class SettingsPanel(QWidget):
     def on_content_type_changed(self, content_type: str):
         """Content type gewijzigd"""
         self.content_type_changed.emit(content_type)
+    
+    def on_preserve_subtitles_changed(self, preserve_text: str):
+        """Originele ondertitels optie gewijzigd"""
+        preserve_subtitles = preserve_text == "Behouden"
+        config_manager.set("preserve_original_subtitles", preserve_subtitles)
+        self.preserve_subtitles_changed.emit(preserve_subtitles)
     
     def update_translator_status(self):
         """Update vertaler status label"""
@@ -181,5 +214,6 @@ class SettingsPanel(QWidget):
             "language": self.language_combo.currentText(),
             "content_type": self.content_combo.currentText(),
             "enable_translation": self.translator_combo.currentText() != "Geen vertaling",
-            "target_language": target_language
+            "target_language": target_language,
+            "preserve_original_subtitles": self.preserve_subtitles_combo.currentText() == "Behouden"
         } 

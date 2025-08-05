@@ -345,7 +345,8 @@ class ProcessingThread(QThread):
                         video_result = video_processor.add_subtitles_to_video(
                             file_path,
                             transcript,
-                            progress_callback=video_progress_wrapper
+                            progress_callback=video_progress_wrapper,
+                            settings=self.settings
                         )
                         
                         if video_result.get("success"):
