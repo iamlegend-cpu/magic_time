@@ -6,6 +6,8 @@ Beheert video verwerking en SRT bestand generatie
 import os
 import json
 import subprocess
+import sys
+import time
 from typing import Dict, List, Any, Optional
 from datetime import timedelta
 # Absolute imports in plaats van relative imports
@@ -21,7 +23,13 @@ except ImportError:
     from core.config import config_manager
     from core.utils import safe_basename, create_progress_bar
 from magic_time_studio.processing.audio_processor import audio_processor
-from magic_time_studio.processing.whisper_processor import whisper_processor
+# Import whisper_manager
+try:
+    from magic_time_studio.processing.whisper_manager import whisper_manager
+except ImportError:
+    import sys
+    sys.path.append('..')
+    from processing.whisper_manager import whisper_manager
 from magic_time_studio.processing.translator import translator
 
 class VideoProcessor:
@@ -30,6 +38,26 @@ class VideoProcessor:
     def __init__(self):
         self.supported_formats = ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm']
         self.output_formats = ['srt', 'vtt', 'txt', 'json']
+        self.last_progress_line = ""
+        
+    def _print_static_progress(self, message: str, end: str = "\r"):
+        """Print een statische voortgangsbalk die op dezelfde regel blijft"""
+        # Wis de vorige regel als die langer is
+        if len(self.last_progress_line) > len(message):
+            print(" " * len(self.last_progress_line), end="\r")
+        
+        print(message, end=end)
+        self.last_progress_line = message
+        
+        # Force flush voor real-time output
+        sys.stdout.flush()
+    
+    def _clear_progress_line(self):
+        """Wis de huidige voortgangsregel"""
+        if self.last_progress_line:
+            print(" " * len(self.last_progress_line), end="\r")
+            self.last_progress_line = ""
+            sys.stdout.flush()
         
     def process_video(self, video_path: str, settings: Dict[str, Any], 
                      progress_callback: Optional[callable] = None) -> Dict[str, Any]:
@@ -64,6 +92,9 @@ class VideoProcessor:
             def audio_progress_wrapper(msg):
                 if progress_callback:
                     progress_callback(0.2, f"🎵 {msg}")
+                # Gebruik ook statische voortgangsbalk voor audio
+                if "FFmpeg:" in msg:
+                    self._print_static_progress(f"🎵 {msg}")
             
             audio_result = audio_processor.extract_audio_from_video(
                 video_path, 
@@ -87,7 +118,7 @@ class VideoProcessor:
             # Detecteer taal als auto
             if language == "auto" and settings.get("auto_detect", True):
                 try:
-                    detected_language = whisper_processor.detect_language(audio_path)
+                    detected_language = whisper_manager.detect_language(audio_path)
                     if detected_language != "auto":
                         language = detected_language
                         logger.log_debug(f"🌍 Taal gedetecteerd: {language}")
@@ -97,7 +128,7 @@ class VideoProcessor:
                     logger.log_debug(f"⚠️ Taal detectie gefaald: {e}, gebruik 'auto'")
                     language = "auto"
             
-            transcription_result = whisper_processor.transcribe_audio(
+            transcription_result = whisper_manager.transcribe_audio(
                 audio_path,
                 language=language,
                 progress_callback=lambda progress_bar: progress_callback(0.4, f"🎤 {progress_bar}")
@@ -230,17 +261,22 @@ class VideoProcessor:
     def _create_srt_file(self, transcriptions: List[Dict], output_path: str):
         """Maak SRT bestand"""
         try:
+            logger.log_debug(f"📄 Start SRT bestand maken: {safe_basename(output_path)}")
+            logger.log_debug(f"📄 Aantal transcriptions: {len(transcriptions)}")
+            
             with open(output_path, 'w', encoding='utf-8') as f:
                 for i, segment in enumerate(transcriptions, 1):
                     start_time = self._format_timestamp(segment["start"])
                     end_time = self._format_timestamp(segment["end"])
                     text = segment.get("translated_text", segment["text"])
                     
+                    logger.log_debug(f"📄 Segment {i}: {start_time} --> {end_time} - {text[:50]}...")
+                    
                     f.write(f"{i}\n")
                     f.write(f"{start_time} --> {end_time}\n")
                     f.write(f"{text}\n\n")
             
-            logger.log_debug(f"📄 SRT bestand gemaakt: {safe_basename(output_path)}")
+            logger.log_debug(f"✅ SRT bestand succesvol gemaakt: {safe_basename(output_path)}")
             
         except Exception as e:
             logger.log_debug(f"❌ Fout bij maken SRT bestand: {e}")
@@ -335,36 +371,64 @@ class VideoProcessor:
         return self.output_formats.copy()
     
     def generate_srt_files(self, video_path: str, transcriptions: List[Dict], 
-                          translated_transcriptions: List[Dict] = None) -> Dict[str, Any]:
+                          translated_transcriptions: List[Dict] = None,
+                          settings: Dict[str, Any] = None) -> Dict[str, Any]:
         """Genereer SRT bestanden voor video"""
         try:
+            logger.log_debug(f"🎬 Start SRT generatie voor: {safe_basename(video_path)}")
+            
             if not os.path.exists(video_path):
+                logger.log_debug(f"❌ Video bestand niet gevonden: {video_path}")
                 return {"error": "Video bestand niet gevonden"}
             
-            logger.log_debug(f"📄 Start SRT generatie: {safe_basename(video_path)}")
+            logger.log_debug(f"📄 Video bestand gevonden: {video_path}")
+            logger.log_debug(f"📄 Aantal transcriptions: {len(transcriptions)} segmenten")
+            logger.log_debug(f"📄 Translated transcriptions beschikbaar: {translated_transcriptions is not None}")
+            
+            if translated_transcriptions:
+                logger.log_debug(f"📄 Aantal translated transcriptions: {len(translated_transcriptions)} segmenten")
             
             # Gebruik altijd de directory van het bronbestand
             output_dir = os.path.dirname(video_path)
+            logger.log_debug(f"📄 Output directory: {output_dir}")
             os.makedirs(output_dir, exist_ok=True)
             
             video_name = safe_basename(video_path)
             name_without_ext = os.path.splitext(video_name)[0]
+            logger.log_debug(f"📄 Video naam zonder extensie: {name_without_ext}")
             
             output_files = {}
             
-            # SRT bestand (origineel) - alleen als er GEEN vertaling is
-            if not translated_transcriptions or translated_transcriptions == transcriptions:
+            # Controleer preserve_original_subtitles setting
+            preserve_original_subtitles = True  # Standaard behouden
+            if settings:
+                preserve_original_subtitles = settings.get("preserve_original_subtitles", True)
+                logger.log_debug(f"📄 Settings gebruikt: {settings}")
+            
+            logger.log_debug(f"📝 Originele ondertitels behouden: {preserve_original_subtitles}")
+            
+            # SRT bestand (origineel) - altijd maken als originele ondertitels behouden moeten worden
+            if preserve_original_subtitles:
                 srt_path = os.path.join(output_dir, f"{name_without_ext}.srt")
+                logger.log_debug(f"📄 Maak origineel SRT bestand: {srt_path}")
                 self._create_srt_file(transcriptions, srt_path)
                 output_files["srt"] = srt_path
+                logger.log_debug(f"✅ Origineel SRT bestand gemaakt: {srt_path}")
+            else:
+                logger.log_debug(f"⚠️ Origineel SRT bestand overgeslagen (preserve_original_subtitles=false)")
             
             # SRT bestand (vertaald) - alleen als er vertaling is
             if translated_transcriptions and translated_transcriptions != transcriptions:
                 translated_srt_path = os.path.join(output_dir, f"{name_without_ext}_nl.srt")
+                logger.log_debug(f"📄 Maak vertaald SRT bestand: {translated_srt_path}")
                 self._create_srt_file(translated_transcriptions, translated_srt_path)
                 output_files["translated_srt"] = translated_srt_path
+                logger.log_debug(f"✅ Vertaald SRT bestand gemaakt: {translated_srt_path}")
+            else:
+                logger.log_debug(f"⚠️ Vertaald SRT bestand overgeslagen (geen vertaling beschikbaar)")
             
             logger.log_debug(f"📄 SRT bestanden gegenereerd: {len(output_files)} bestanden")
+            logger.log_debug(f"📄 Output files: {output_files}")
             
             return {
                 "success": True,
@@ -373,6 +437,8 @@ class VideoProcessor:
             
         except Exception as e:
             logger.log_debug(f"❌ Fout bij genereren SRT bestanden: {e}")
+            import traceback
+            logger.log_debug(f"❌ Traceback: {traceback.format_exc()}")
             return {"error": str(e)}
     
     def add_subtitles_to_video(self, video_path: str, subtitle_text: str, 
@@ -488,18 +554,29 @@ class VideoProcessor:
                                 except:
                                     pass
                             elif "frame=" in output:
-                                # Stuur frame info door
-                                if progress_callback:
-                                    try:
-                                        if "fps=" in output and "time=" in output:
-                                            # Extract fps en time info
-                                            fps_part = output.split("fps=")[1].split()[0]
-                                            time_part = output.split("time=")[1].split()[0]
-                                            progress_callback(f"🎬 FFmpeg: {fps_part} fps, {time_part}")
-                                        else:
-                                            progress_callback(f"🎬 FFmpeg: {output.strip()}")
-                                    except:
-                                        progress_callback(f"🎬 FFmpeg: {output.strip()}")
+                                # Stuur frame info door met statische voortgangsbalk
+                                try:
+                                    if "fps=" in output and "time=" in output:
+                                        # Extract fps en time info
+                                        fps_part = output.split("fps=")[1].split()[0]
+                                        time_part = output.split("time=")[1].split()[0]
+                                        progress_message = f"🎬 FFmpeg: {fps_part} fps, {time_part}"
+                                        self._print_static_progress(progress_message)
+                                        
+                                        if progress_callback:
+                                            progress_callback(progress_message)
+                                    else:
+                                        progress_message = f"🎬 FFmpeg: {output.strip()}"
+                                        self._print_static_progress(progress_message)
+                                        
+                                        if progress_callback:
+                                            progress_callback(progress_message)
+                                except:
+                                    progress_message = f"🎬 FFmpeg: {output.strip()}"
+                                    self._print_static_progress(progress_message)
+                                    
+                                    if progress_callback:
+                                        progress_callback(progress_message)
                     
                     # Wacht tot proces klaar is
                     return_code = process.wait()

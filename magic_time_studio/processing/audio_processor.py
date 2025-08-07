@@ -8,6 +8,7 @@ import sys
 import subprocess
 import tempfile
 from typing import Dict, Any, Optional, Tuple
+import time
 
 # Absolute imports in plaats van relative imports
 try:
@@ -29,7 +30,27 @@ class AudioProcessor:
         self.supported_audio_formats = ['.mp3', '.wav', '.flac', '.m4a', '.aac', '.ogg']
         self.supported_video_formats = ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm']
         self.ffmpeg_path = self._find_ffmpeg()
+        self.last_progress_line = ""
         
+    def _print_static_progress(self, message: str, end: str = "\r"):
+        """Print een statische voortgangsbalk die op dezelfde regel blijft"""
+        # Wis de vorige regel als die langer is
+        if len(self.last_progress_line) > len(message):
+            print(" " * len(self.last_progress_line), end="\r")
+        
+        print(message, end=end)
+        self.last_progress_line = message
+        
+        # Force flush voor real-time output
+        sys.stdout.flush()
+    
+    def _clear_progress_line(self):
+        """Wis de huidige voortgangsregel"""
+        if self.last_progress_line:
+            print(" " * len(self.last_progress_line), end="\r")
+            self.last_progress_line = ""
+            sys.stdout.flush()
+    
     def _find_ffmpeg(self) -> str:
         """Zoek FFmpeg executable"""
         # Eerst zoeken in de bundle (voor PyInstaller exe)
@@ -100,7 +121,13 @@ class AudioProcessor:
             audio_filename = f"{name_without_ext}_audio.{audio_format}"
             audio_path = os.path.join(output_dir, audio_filename)
             
+            # Normaliseer het pad om backslash problemen te voorkomen
+            audio_path = os.path.normpath(audio_path)
+            
             logger.log_debug(f"🎵 Start audio extractie: {safe_basename(video_path)}")
+            logger.log_debug(f"🎵 Audio output pad: {audio_path}")
+            print(f"🎵 Start FFmpeg audio extractie: {safe_basename(video_path)}")
+            print(f"📁 Output: {audio_path}")
             
             # FFmpeg commando voor audio extractie met progress output
             cmd = [
@@ -110,7 +137,6 @@ class AudioProcessor:
                 "-acodec", "pcm_s16le" if audio_format == "wav" else "copy",
                 "-ar", "16000",  # Sample rate voor Whisper
                 "-ac", "1",  # Mono
-                "-progress", "pipe:1",  # Stuur progress naar stdout
                 "-y",  # Overschrijf bestaand bestand
                 audio_path
             ]
@@ -118,16 +144,8 @@ class AudioProcessor:
             # Voer FFmpeg uit met real-time output
             if progress_callback:
                 # Gebruik Popen voor real-time output
-                quoted_cmd = []
-                for arg in cmd:
-                    if " " in arg and not arg.startswith('"'):
-                        quoted_cmd.append(f'"{arg}"')
-                    else:
-                        quoted_cmd.append(arg)
-                
                 process = subprocess.Popen(
-                    " ".join(quoted_cmd),
-                    shell=True,
+                    cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True,
@@ -135,40 +153,42 @@ class AudioProcessor:
                     universal_newlines=True
                 )
                 
-                # Lees real-time output
+                # Lees real-time output van stderr (FFmpeg stuurt progress naar stderr)
                 while True:
-                    output = process.stdout.readline()
+                    output = process.stderr.readline()
                     if output == '' and process.poll() is not None:
                         break
                     if output:
+                        output = output.strip()
                         # Parse progress uit FFmpeg output
-                        if "out_time_ms=" in output:
+                        if "frame=" in output and "fps=" in output and "time=" in output:
                             try:
-                                time_ms = int(output.split("=")[1])
-                                # Schat progress gebaseerd op tijd (niet perfect maar werkt)
+                                # Extract frame, fps en time info
+                                frame_part = output.split("frame=")[1].split()[0]
+                                fps_part = output.split("fps=")[1].split()[0]
+                                time_part = output.split("time=")[1].split()[0]
+                                
+                                # Maak statische voortgangsbalk
+                                progress_message = f"🎵 FFmpeg: Frame {frame_part}, {fps_part} fps, {time_part}"
+                                self._print_static_progress(progress_message)
+                                
+                                # Stuur voortgang door naar callback
                                 if progress_callback:
-                                    # Maak een voortgangsbalk gebaseerd op tijd
-                                    # Schat totale duur op 2 minuten als fallback
-                                    estimated_duration = 120.0  # 2 minuten
-                                    progress = min(time_ms / 1000.0 / estimated_duration, 0.99)
-                                    progress_bar = create_progress_bar(progress, 40, safe_basename(video_path))
-                                    progress_callback(f"🎵 {progress_bar}")
+                                    progress_callback(progress_message)
                             except:
-                                pass
-                        elif "frame=" in output:
-                            # Stuur frame info door als voortgangsbalk
+                                # Als parsing faalt, stuur gewoon de output door
+                                progress_message = f"🎵 FFmpeg: {output}"
+                                self._print_static_progress(progress_message)
+                                
+                                if progress_callback:
+                                    progress_callback(progress_message)
+                        elif output and not output.startswith("frame="):
+                            # Stuur andere FFmpeg berichten door
+                            progress_message = f"🎵 FFmpeg: {output}"
+                            self._print_static_progress(progress_message)
+                            
                             if progress_callback:
-                                # Parse frame info voor progress
-                                try:
-                                    if "fps=" in output and "time=" in output:
-                                        # Extract fps en time info
-                                        fps_part = output.split("fps=")[1].split()[0]
-                                        time_part = output.split("time=")[1].split()[0]
-                                        progress_callback(f"🎵 FFmpeg: {fps_part} fps, {time_part}")
-                                    else:
-                                        progress_callback(f"🎵 FFmpeg: {output.strip()}")
-                                except:
-                                    progress_callback(f"🎵 FFmpeg: {output.strip()}")
+                                progress_callback(progress_message)
                 
                 # Wacht tot proces klaar is
                 return_code = process.wait()
@@ -178,6 +198,8 @@ class AudioProcessor:
                     file_size = os.path.getsize(audio_path)
                     
                     logger.log_debug(f"✅ Audio extractie voltooid: {safe_basename(audio_path)}")
+                    print(f"✅ FFmpeg audio extractie voltooid: {safe_basename(audio_path)}")
+                    print(f"📊 Bestandsgrootte: {file_size} bytes")
                     
                     return {
                         "success": True,
@@ -191,16 +213,8 @@ class AudioProcessor:
                     return {"error": f"FFmpeg fout: {error_msg}"}
             else:
                 # Originele methode zonder real-time output
-                quoted_cmd = []
-                for arg in cmd:
-                    if " " in arg and not arg.startswith('"'):
-                        quoted_cmd.append(f'"{arg}"')
-                    else:
-                        quoted_cmd.append(arg)
-                
                 result = subprocess.run(
-                    " ".join(quoted_cmd), 
-                    shell=True, 
+                    cmd, 
                     capture_output=True, 
                     text=True, 
                     timeout=300

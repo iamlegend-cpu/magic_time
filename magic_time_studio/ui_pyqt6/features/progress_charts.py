@@ -8,7 +8,6 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTabWidget, QLabel
 # Import alle refactored componenten
 from .real_time_chart import RealTimeChart
 from .performance_chart import PerformanceChart
-from .processing_progress import ProcessingProgressChart
 from .subtitle_preview import SubtitlePreviewWidget
 
 

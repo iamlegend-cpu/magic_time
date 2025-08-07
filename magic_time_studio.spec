@@ -21,6 +21,15 @@ assets_dir = os.path.join(project_root, 'assets')
 if os.path.exists(assets_dir):
     datas.append((assets_dir, 'assets'))
 
+# Add FFmpeg directly to datas
+ffmpeg_path = os.path.join(project_root, 'assets', 'ffmpeg.exe')
+if os.path.exists(ffmpeg_path):
+    datas.append((ffmpeg_path, '.'))
+    binaries.append((ffmpeg_path, '.'))  # Also add to binaries
+    print(f"FFmpeg toegevoegd aan datas en binaries: {ffmpeg_path}")
+else:
+    print(f"FFmpeg niet gevonden: {ffmpeg_path}")
+
 # Add icon files specifically
 icon_files = [
     os.path.join(project_root, 'assets', 'Magic_Time_Studio.ico'),
@@ -29,23 +38,6 @@ icon_files = [
 for icon_file in icon_files:
     if os.path.exists(icon_file):
         datas.append((icon_file, 'assets'))
-
-# Add ffmpeg if it exists
-ffmpeg_path = os.path.join(project_root, 'assets', 'ffmpeg.exe')
-if os.path.exists(ffmpeg_path):
-    datas.append((ffmpeg_path, '.'))
-    print(f"FFmpeg toegevoegd aan bundle: {ffmpeg_path}")
-else:
-    print(f"FFmpeg niet gevonden: {ffmpeg_path}")
-
-# Add ffmpeg to binaries as well (in root directory)
-if os.path.exists(ffmpeg_path):
-    binaries.append((ffmpeg_path, '.'))
-    print(f"FFmpeg toegevoegd aan binaries: {ffmpeg_path}")
-    
-    # Also add to datas with explicit root placement
-    datas.append((ffmpeg_path, '.'))
-    print(f"FFmpeg toegevoegd aan datas root: {ffmpeg_path}")
 
 # Hidden imports
 hiddenimports = [

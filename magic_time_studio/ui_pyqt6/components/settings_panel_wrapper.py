@@ -25,4 +25,24 @@ class SettingsPanelWrapper(QWidget):
         settings_group = QGroupBox("⚙️ Instellingen")
         settings_layout = QVBoxLayout(settings_group)
         settings_layout.addWidget(self.settings_panel)
-        layout.addWidget(settings_group) 
+        layout.addWidget(settings_group)
+    
+    def freeze_settings(self):
+        """Bevries alle instellingen tijdens verwerking"""
+        self.settings_panel.freeze_settings()
+    
+    def unfreeze_settings(self):
+        """Ontdooi alle instellingen na verwerking"""
+        self.settings_panel.unfreeze_settings()
+    
+    def is_frozen(self) -> bool:
+        """Controleer of settings bevroren zijn"""
+        return self.settings_panel.is_frozen()
+    
+    def get_current_settings(self) -> dict:
+        """Haal huidige instellingen op"""
+        return self.settings_panel.get_current_settings()
+    
+    def update_translator_status(self):
+        """Update vertaler status"""
+        self.settings_panel.update_translator_status() 

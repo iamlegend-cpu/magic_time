@@ -72,6 +72,7 @@ class DragDropZone(QLabel):
     
     def __init__(self, text: str = "Sleep bestanden hierheen"):
         super().__init__(text)
+        self.processing_active = False  # Flag voor verwerking status
         self.setup_drag_drop()
         self.setup_styling()
     
@@ -85,23 +86,50 @@ class DragDropZone(QLabel):
         """Setup styling voor drag & drop zone"""
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setMinimumHeight(100)
-        self.setStyleSheet("""
-            QLabel {
-                border: 2px dashed #555555;
-                border-radius: 8px;
-                background-color: rgba(255, 255, 255, 0.05);
-                color: #cccccc;
-                font-size: 14px;
-                font-weight: bold;
-            }
-            QLabel:hover {
-                border-color: #4caf50;
-                background-color: rgba(76, 175, 80, 0.1);
-            }
-        """)
+        
+        if self.processing_active:
+            # Styling voor verwerking actief
+            self.setStyleSheet("""
+                QLabel {
+                    border: 2px dashed #888888;
+                    border-radius: 8px;
+                    background-color: rgba(136, 136, 136, 0.1);
+                    color: #888888;
+                    font-size: 14px;
+                    font-weight: bold;
+                }
+            """)
+            self.setText("Verwerking actief - geen drag & drop mogelijk")
+        else:
+            # Normale styling
+            self.setStyleSheet("""
+                QLabel {
+                    border: 2px dashed #555555;
+                    border-radius: 8px;
+                    background-color: rgba(255, 255, 255, 0.05);
+                    color: #cccccc;
+                    font-size: 14px;
+                    font-weight: bold;
+                }
+                QLabel:hover {
+                    border-color: #4caf50;
+                    background-color: rgba(76, 175, 80, 0.1);
+                }
+            """)
+            self.setText("Sleep bestanden hierheen")
+    
+    def set_processing_active(self, active: bool):
+        """Stel processing active status in"""
+        self.processing_active = active
+        self.setup_styling()
     
     def drag_enter_event(self, event: QDragEnterEvent):
         """Handle drag enter event"""
+        # Blokkeer drag & drop tijdens verwerking
+        if self.processing_active:
+            event.ignore()
+            return
+        
         if event.mimeData().hasUrls():
             # Controleer of er geldige bestanden zijn
             valid_files = []
@@ -126,6 +154,11 @@ class DragDropZone(QLabel):
     
     def drop_event(self, event: QDropEvent):
         """Handle drop event"""
+        # Blokkeer drop tijdens verwerking
+        if self.processing_active:
+            event.ignore()
+            return
+        
         files = []
         for url in event.mimeData().urls():
             file_path = url.toLocalFile()

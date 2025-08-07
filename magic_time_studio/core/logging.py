@@ -25,6 +25,11 @@ class Logger:
         self.log_to_file = config_manager.get_env("LOG_TO_FILE", "false").lower() == "true"
         self.log_level = config_manager.get_env("LOG_LEVEL", "INFO").upper()
         
+        # Debug output voor logging configuratie
+        print(f"🔧 [DEBUG] Logger configuratie:")
+        print(f"🔧 [DEBUG] LOG_TO_FILE: {self.log_to_file}")
+        print(f"🔧 [DEBUG] LOG_LEVEL: {self.log_level}")
+        
         # Log bestand pad
         if self.log_to_file:
             log_file_path = config_manager.get_env("LOG_FILE_PATH", "")
@@ -77,7 +82,11 @@ class Logger:
         logging_config = config_manager.get("logging_config", {})
         
         # Controleer of deze categorie gelogd moet worden
-        if category in logging_config and not logging_config[category]:
+        # Forceer debug mode als LOG_LEVEL=DEBUG
+        if self.log_level == "DEBUG":
+            # Toon alle berichten in debug mode
+            pass
+        elif category in logging_config and not logging_config[category]:
             return
         
         # Voeg timestamp toe
@@ -103,6 +112,15 @@ class Logger:
                 self.log_text_widget.append(f"{formatted_msg}")
             except:
                 pass
+        
+        # Schrijf naar debug log bestand als LOG_TO_FILE=true
+        if self.log_to_file and self.log_path:
+            try:
+                os.makedirs(os.path.dirname(self.log_path), exist_ok=True)
+                with open(self.log_path, "a", encoding="utf-8") as f:
+                    f.write(f"{formatted_msg}\n")
+            except Exception as e:
+                pass  # Stil falen in productie
     
     def set_log_widget(self, widget: object) -> None:
         """Zet de log text widget"""

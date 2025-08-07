@@ -32,7 +32,8 @@ from magic_time_studio.ui_pyqt6.main_window import MainWindow
 from magic_time_studio.ui_pyqt6.themes import ThemeManager
 
 # Import processing modules
-from magic_time_studio.processing import whisper_processor, translator, audio_processor, video_processor
+from magic_time_studio.processing import translator, audio_processor, video_processor
+from magic_time_studio.processing.whisper_manager import whisper_manager
 
 from magic_time_studio.app_core.magic_time_studio_pyqt6 import MagicTimeStudioPyQt6
 from magic_time_studio.app_core.processing_thread import ProcessingThread

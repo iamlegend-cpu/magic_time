@@ -4,15 +4,15 @@ Bevat Whisper diagnose, CUDA test en documentatie openen
 """
 
 import webbrowser
-from magic_time_studio.processing import whisper_processor
+from magic_time_studio.processing.whisper_manager import whisper_manager
 from magic_time_studio.processing import audio_processor
 from magic_time_studio.processing import translator
 
 def whisper_diagnose():
     """Geef informatie over het geladen Whisper-model"""
-    if not whisper_processor.is_model_loaded():
+    if not whisper_manager.is_model_loaded():
         return "Whisper model is niet geladen."
-    info = whisper_processor.get_model_info()
+    info = whisper_manager.get_model_info()
     if 'error' in info:
         return f"Fout: {info['error']}"
     return (

@@ -81,7 +81,7 @@ class StopManager:
         try:
             import requests
             # Probeer LibreTranslate te stoppen als het draait
-            translator_url = config_manager.get_env("LIBRETRANSLATE_SERVER", "100.90.127.78:5000")
+            translator_url = config_manager.get_env("LIBRETRANSLATE_SERVER", "")
             if translator_url:
                 try:
                     response = requests.get(f"http://{translator_url}/health", timeout=2)

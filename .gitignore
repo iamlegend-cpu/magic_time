@@ -29,6 +29,7 @@ env/
 ENV/
 env.bak/
 venv.bak/
+pyqt6_env/
 
 # IDE
 .vscode/
@@ -67,8 +68,8 @@ output/
 *.m4a
 *.aac
 
-# Config files (optioneel - uncomment als je config niet wilt committen)
-# config.json
+# Config files (bevat gevoelige informatie zoals server IP's)
+config.json
 
 # Environment variables
 .env
@@ -82,6 +83,11 @@ output/
 # FFmpeg (als het lokaal wordt gedownload)
 ffmpeg.exe
 ffmpeg
+
+# Large files (too big for GitHub)
+cublas64_12.dll
+installer_output/
+*.exe
 
 # Temporary files
 *.tmp

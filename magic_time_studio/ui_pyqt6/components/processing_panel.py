@@ -176,14 +176,14 @@ class ProcessingPanel(QWidget):
             self.status_label.setText(status)
             
             # Voeg alleen nieuwe status toe aan log (niet elke progress update)
-            if "🎤 Whisper:" in status and "%" in status:
-                # Voor Whisper updates, update alleen als het een significante stap is
-                current_percent = status.split("%")[0].split(":")[-1].strip()
+            # Parse Fast Whisper progress
+            if "🎤 Fast Whisper:" in status and "%" in status:
                 try:
-                    percent = float(current_percent)
-                    if percent % 5 == 0:  # Alleen elke 5% loggen
-                        self.log_output.append(f"📊 {status}")
-                except ValueError:
+                    # Extract percentage from status message
+                    percent_str = status.split("🎤 Fast Whisper:")[1].split("%")[0].strip()
+                    percent = float(percent_str)
+                    return percent
+                except:
                     pass
             else:
                 # Voor andere updates, altijd loggen

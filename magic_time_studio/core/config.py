@@ -19,7 +19,7 @@ DEFAULT_CONFIG = {
     "debug_mode": False,  # Zet debug mode uit standaard
     "preserve_original_subtitles": True,  # Behoud originele ondertitels standaard
     "logging_config": {
-        "debug": False,  # Zet debug logging uit standaard
+        "debug": True,  # Zet debug logging aan standaard
         "info": True,
         "warning": True,
         "error": True
@@ -101,6 +101,20 @@ class ConfigManager:
     def __init__(self):
         # Plaats config.json in de hoofdfolder van het programma
         self.config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.json")
+        
+        # Zoek naar .env bestand
+        env_paths = [
+            Path(__file__).parent.parent / ".env",  # magic_time_studio/.env
+            Path.cwd() / ".env",  # Huidige directory
+            Path.home() / ".env",  # Home directory
+        ]
+        
+        self.env_file_path = None
+        for env_path in env_paths:
+            if env_path.exists():
+                self.env_file_path = env_path
+                break
+        
         self.env_vars = self.load_env_variables()
         self.config = self.load_configuration()
         
@@ -225,8 +239,39 @@ class ConfigManager:
         return self.config.get(key, default)
     
     def get_env(self, key: str, default: str = "") -> str:
-        """Krijg een environment variable"""
+        """Haal environment variable op"""
         return self.env_vars.get(key, default)
+    
+    def set_env(self, key: str, value: str) -> None:
+        """Zet environment variable (wordt opgeslagen in .env bestand)"""
+        self.env_vars[key] = value
+        # Sla op in .env bestand
+        self._save_env_to_file()
+    
+    def _save_env_to_file(self) -> None:
+        """Sla environment variables op in .env bestand"""
+        try:
+            env_path = self.env_file_path
+            if env_path and env_path.exists():
+                # Lees bestaande .env bestand
+                existing_vars = {}
+                with open(env_path, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith('#') and '=' in line:
+                            key, value = line.split('=', 1)
+                            existing_vars[key] = value
+                
+                # Update met nieuwe waarden
+                existing_vars.update(self.env_vars)
+                
+                # Schrijf terug naar .env bestand
+                with open(env_path, 'w', encoding='utf-8') as f:
+                    for key, value in existing_vars.items():
+                        f.write(f"{key}={value}\n")
+                        
+        except Exception as e:
+            print(f"⚠️ Kon .env bestand niet opslaan: {e}")
     
     def set(self, key: str, value: Any) -> None:
         """Zet een configuratie waarde"""

@@ -9,37 +9,70 @@ from magic_time_studio.ui_pyqt6.config_window import ConfigWindow
 from magic_time_studio.ui_pyqt6.log_viewer import LogViewer
 from magic_time_studio.ui_pyqt6.components.menu_manager import MenuManager
 from magic_time_studio.core.config import config_manager
-from magic_time_studio.processing import whisper_processor, translator, audio_processor
+from magic_time_studio.processing import translator, audio_processor
+from magic_time_studio.processing.whisper_manager import whisper_manager
+
+# Import whisper_manager
+try:
+    from magic_time_studio.processing.whisper_manager import whisper_manager
+except ImportError:
+    import sys
+    sys.path.append('..')
+    from processing.whisper_manager import whisper_manager
 
 class MenuHandlersMixin:
     """Mixin voor menu handler functionaliteit"""
     
     def create_menu(self):
-        """Maak de menubalk"""
-        self.menu_manager = MenuManager(self)
+        """Maak menu aan"""
+        menubar = self.menuBar()
         
-        # Connect menu signals
-        self.menu_manager.add_file_triggered.connect(self.add_file)
-        self.menu_manager.add_folder_triggered.connect(self.add_folder)
-        self.menu_manager.remove_selected_triggered.connect(self.remove_selected)
-        self.menu_manager.clear_list_triggered.connect(self.clear_list)
-        self.menu_manager.start_processing_triggered.connect(self.start_processing)
-        self.menu_manager.stop_processing_triggered.connect(self.stop_processing)
-        self.menu_manager.show_config_triggered.connect(self.show_config)
-        self.menu_manager.show_log_triggered.connect(self.show_log)
-        self.menu_manager.performance_test_triggered.connect(self.performance_test)
-        self.menu_manager.cuda_test_triggered.connect(self.cuda_test)
-        self.menu_manager.whisper_diagnose_triggered.connect(self.whisper_diagnose)
-        self.menu_manager.test_completed_files_triggered.connect(self.test_completed_files)
-        self.menu_manager.theme_changed.connect(self.change_theme)
-        self.menu_manager.exit_triggered.connect(self.close)
+        # Bestanden menu
+        files_menu = menubar.addMenu("Bestanden")
         
-        # View menu signals
-        self.menu_manager.show_charts_triggered.connect(self.show_charts_panel)
-        self.menu_manager.show_batch_triggered.connect(self.show_batch_panel)
+        add_file_action = files_menu.addAction("📁 Bestand toevoegen")
+        add_file_action.triggered.connect(self.add_file)
+        
+        add_folder_action = files_menu.addAction("📂 Map toevoegen")
+        add_folder_action.triggered.connect(self.add_folder)
+        
+        files_menu.addSeparator()
+        
+        remove_action = files_menu.addAction("🗑️ Verwijder geselecteerd")
+        remove_action.triggered.connect(self.remove_selected)
+        
+        # Verwijder de clear_list functionaliteit - gebruikers kunnen de hele lijst niet wissen
+        # clear_action = files_menu.addAction("🗑️ Wis lijst")
+        # clear_action.triggered.connect(self.clear_list)
+        
+        # Verwerking menu
+        processing_menu = menubar.addMenu("Verwerking")
+        
+        start_action = processing_menu.addAction("▶️ Start verwerking")
+        start_action.triggered.connect(self.start_processing)
+        
+        stop_action = processing_menu.addAction("⏹️ Stop verwerking")
+        stop_action.triggered.connect(self.stop_processing)
+        
+        # Configuratie menu
+        config_menu = menubar.addMenu("Configuratie")
+        
+        settings_action = config_menu.addAction("⚙️ Instellingen")
+        settings_action.triggered.connect(self.show_config)
+        
+        # Help menu
+        help_menu = menubar.addMenu("Help")
+        
+        about_action = help_menu.addAction("ℹ️ Over")
+        about_action.triggered.connect(self.show_about)
     
     def add_file(self):
         """Voeg bestand toe via menu"""
+        # Voorkom toevoegen tijdens verwerking
+        if hasattr(self, 'processing_active') and self.processing_active:
+            print("⚠️ Kan geen bestanden toevoegen tijdens verwerking")
+            return
+        
         files, _ = QFileDialog.getOpenFileNames(
             self, "Selecteer bestanden", "",
             "Video bestanden (*.mp4 *.avi *.mkv *.mov *.wmv *.flv *.webm)"
@@ -56,12 +89,19 @@ class MenuHandlersMixin:
                     added_count += 1
         
         if added_count > 0:
+            # Update remove button state na toevoegen
+            self.files_panel.update_remove_button_state()
             self.update_status(f"✅ {added_count} video bestand(en) toegevoegd")
         else:
             self.update_status("⚠️ Geen video bestanden toegevoegd")
     
     def add_folder(self):
         """Voeg map toe via menu"""
+        # Voorkom toevoegen tijdens verwerking
+        if hasattr(self, 'processing_active') and self.processing_active:
+            print("⚠️ Kan geen bestanden toevoegen tijdens verwerking")
+            return
+        
         folder = QFileDialog.getExistingDirectory(self, "Selecteer map")
         if folder:
             added_count = 0
@@ -78,23 +118,33 @@ class MenuHandlersMixin:
                             added_count += 1
             
             if added_count > 0:
+                # Update remove button state na toevoegen
+                self.files_panel.update_remove_button_state()
                 self.update_status(f"✅ {added_count} video bestand(en) uit map '{os.path.basename(folder)}' toegevoegd")
             else:
                 self.update_status(f"⚠️ Geen video bestanden gevonden in map '{os.path.basename(folder)}'")
     
     def remove_selected(self):
         """Verwijder geselecteerd bestand via menu"""
+        # Voorkom verwijdering tijdens verwerking
+        if hasattr(self, 'processing_active') and self.processing_active:
+            print("⚠️ Kan bestanden niet verwijderen tijdens verwerking")
+            QMessageBox.warning(self, "Waarschuwing", "Kan bestanden niet verwijderen tijdens verwerking!")
+            return
+        
         current_row = self.files_panel.file_list_widget.currentRow()
         if current_row >= 0:
+            # Voorkom verwijdering van het eerste bestand (index 0)
+            if current_row == 0:
+                print("⚠️ Kan het eerste bestand niet verwijderen tijdens verwerking")
+                QMessageBox.warning(self, "Waarschuwing", "Kan het eerste bestand niet verwijderen!")
+                return
+            
             self.files_panel.file_list_widget.takeItem(current_row)
             self.files_panel.file_list.pop(current_row)
+            # Update de remove button state na verwijdering
+            self.files_panel.update_remove_button_state()
             self.update_status("Geselecteerd bestand verwijderd")
-    
-    def clear_list(self):
-        """Wis de lijst via menu"""
-        self.files_panel.file_list_widget.clear()
-        self.files_panel.file_list.clear()
-        self.update_status("Lijst gewist")
     
     def show_config(self):
         """Toon configuratie venster"""
@@ -110,7 +160,14 @@ class MenuHandlersMixin:
     def on_config_saved(self, config=None):
         """Callback wanneer configuratie wordt opgeslagen"""
         print("💾 Configuratie opgeslagen, update UI")
-        self.settings_panel.settings_panel.update_translator_status()
+        
+        # Update vertaler status als settings panel bestaat
+        if hasattr(self, 'settings_panel') and self.settings_panel:
+            try:
+                self.settings_panel.update_translator_status()
+                print("✅ Vertaler status bijgewerkt")
+            except Exception as e:
+                print(f"⚠️ Fout bij updaten vertaler status: {e}")
         
         # Herlaad interface als panel zichtbaarheid is gewijzigd
         self.reload_interface()
@@ -130,12 +187,11 @@ class MenuHandlersMixin:
             import time
             time.sleep(2)
             report = performance_tracker.generate_report()
-            extra_status = f"""
-Whisper Model: {'Geladen' if whisper_processor.is_model_loaded() else 'Niet geladen'}
-FFmpeg: {'Beschikbaar' if audio_processor.is_ffmpeg_available() else 'Niet beschikbaar'}
-Vertaler: {translator.get_current_service()}
+            whisper_status = f"""
+Whisper Model: {'Geladen' if whisper_manager.is_model_loaded() else 'Niet geladen'}
+Whisper Type: {whisper_manager.get_current_whisper_type()}
 """
-            report_text = report + extra_status
+            report_text = report + whisper_status
             QMessageBox.information(self, "Performance Test", report_text)
         except Exception as e:
             print(f"❌ Fout bij performance test: {e}")
@@ -173,7 +229,7 @@ Vertaler: {translator.get_current_service()}
         if "charts" in self.visible_panels:
             # Panel is zichtbaar, verberg het
             self.charts_panel.hide()
-            self.splitter.removeWidget(self.charts_panel)
+            self.splitter.takeWidget(self.charts_panel)
             del self.visible_panels["charts"]
             config_manager.set_panel_visibility("charts", False)
             self.update_status("Grafieken panel verborgen")
@@ -184,13 +240,16 @@ Vertaler: {translator.get_current_service()}
             self.visible_panels["charts"] = self.charts_panel
             config_manager.set_panel_visibility("charts", True)
             self.update_status("Grafieken panel zichtbaar")
+        
+        # Pas window grootte aan
+        self._adjust_window_size()
     
     def show_batch_panel(self):
         """Toon/verberg batch panel"""
         if "batch" in self.visible_panels:
             # Panel is zichtbaar, verberg het
             self.batch_panel.hide()
-            self.splitter.removeWidget(self.batch_panel)
+            self.splitter.takeWidget(self.batch_panel)
             del self.visible_panels["batch"]
             config_manager.set_panel_visibility("batch", False)
             self.update_status("Batch panel verborgen")
@@ -200,4 +259,46 @@ Vertaler: {translator.get_current_service()}
             self.batch_panel.show()
             self.visible_panels["batch"] = self.batch_panel
             config_manager.set_panel_visibility("batch", True)
-            self.update_status("Batch panel zichtbaar") 
+            self.update_status("Batch panel zichtbaar")
+        
+        # Pas window grootte aan
+        self._adjust_window_size()
+    
+    def _adjust_window_size(self):
+        """Pas window grootte aan op basis van zichtbare panels"""
+        try:
+            # Behoud maximized state
+            if not self.isMaximized():
+                self.showMaximized()
+            
+            # Force een layout update
+            self.updateGeometry()
+            self.update()
+                
+        except Exception as e:
+            print(f"❌ Fout bij aanpassen window grootte: {e}")
+    
+    def show_about(self):
+        """Toon about dialog"""
+        about_text = """
+Magic Time Studio v3.0
+
+Een geavanceerde video ondertiteling applicatie met AI-powered transcriptie.
+
+Functies:
+• Automatische transcriptie met Whisper AI
+• Ondersteuning voor meerdere video formaten
+• Real-time verwerking en voortgang
+• Moderne PyQt6 gebruikersinterface
+• Configuratie en thema ondersteuning
+
+Technologie:
+• PyQt6 voor de gebruikersinterface
+• OpenAI Whisper voor transcriptie
+• FFmpeg voor video verwerking
+• PyTorch voor AI modellen
+
+Ontwikkeld met ❤️ voor content creators.
+        """
+        
+        QMessageBox.about(self, "Over Magic Time Studio", about_text.strip()) 

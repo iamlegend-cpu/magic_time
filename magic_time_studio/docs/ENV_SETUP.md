@@ -19,7 +19,7 @@ Bewerk het `.env` bestand en pas de waarden aan:
 
 ```env
 # LibreTranslate Server Configuratie
-LIBRETRANSLATE_SERVER=http://100.90.127.78:5000
+LIBRETRANSLATE_SERVER=http://localhost:5000
 
 # API Key voor LibreTranslate (indien vereist)
 # LIBRETRANSLATE_API_KEY=your_api_key_here
@@ -38,7 +38,7 @@ LIBRETRANSLATE_RATE_LIMIT=60
 #### LIBRETRANSLATE_SERVER
 
 **Type:** URL  
-**Standaard:** `http://100.90.127.78:5000`  
+**Standaard:** `http://localhost:5000`  
 **Beschrijving:** De URL van je LibreTranslate server
 
 #### LIBRETRANSLATE_API_KEY
@@ -120,7 +120,7 @@ LIBRETRANSLATE_RATE_LIMIT=60
 #### LOG_LEVEL
 
 **Type:** String  
-**Standaard:** `INFO`  
+**Standaard:** `DEBUG`  
 **Opties:** `DEBUG`, `INFO`, `WARNING`, `ERROR`  
 **Beschrijving:** Logging niveau
 
@@ -194,7 +194,7 @@ LIBRETRANSLATE_SERVER=http://localhost:5000
 LIBRETRANSLATE_SERVER=https://libretranslate.com
 
 # Custom server
-LIBRETRANSLATE_SERVER=http://192.168.1.100:5000
+LIBRETRANSLATE_SERVER=http://jouw-server:5000
 ```
 
 # LIBRETRANSLATE_API_KEY
@@ -293,7 +293,7 @@ LIBRETRANSLATE_SERVER=http://127.0.0.1:5000
 
 ```env
 # LAN server
-LIBRETRANSLATE_SERVER=http://192.168.1.100:5000
+LIBRETRANSLATE_SERVER=http://jouw-server:5000
 
 # VPS server
 LIBRETRANSLATE_SERVER=https://translate.yourdomain.com

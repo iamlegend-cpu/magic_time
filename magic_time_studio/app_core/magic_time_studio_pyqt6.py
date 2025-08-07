@@ -7,9 +7,18 @@ from magic_time_studio.core.config import config_manager
 from magic_time_studio.core.stop_manager import stop_manager
 from magic_time_studio.ui_pyqt6.main_window import MainWindow
 from magic_time_studio.ui_pyqt6.themes import ThemeManager
-from magic_time_studio.processing import whisper_processor, translator, audio_processor, video_processor
+from magic_time_studio.processing import translator, audio_processor, video_processor
+from magic_time_studio.processing.whisper_manager import whisper_manager
 from magic_time_studio.app_core.processing_thread import ProcessingThread
 from magic_time_studio.app_core.single_instance import release_single_instance_lock
+
+# Import whisper_manager
+try:
+    from magic_time_studio.processing.whisper_manager import whisper_manager
+except ImportError:
+    import sys
+    sys.path.append('..')
+    from processing.whisper_manager import whisper_manager
 
 # Debug mode - zet op False om debug output uit te zetten
 DEBUG_MODE = False
@@ -47,13 +56,19 @@ class MagicTimeStudioPyQt6:
         """Initialiseer processing modules"""
         print("🔧 Processing modules initialiseren...")
         
-        print(f"[DEBUG] Gekozen Whisper model uit config: {config_manager.get('default_whisper_model', 'large')}")
-        # Initialiseer Whisper
-        default_model = config_manager.get("default_whisper_model", "large")
-        if whisper_processor.initialize(default_model):
-            print(f"✅ Whisper geïnitialiseerd met model: {default_model}")
+        # Initialiseer Whisper Manager
+        default_whisper_type = config_manager.get_env("WHISPER_TYPE", "fast")
+        if default_whisper_type == "fast":
+            default_model = config_manager.get_env("DEFAULT_FAST_WHISPER_MODEL", "large-v3-turbo")
         else:
-            print("⚠️ Whisper initialisatie gefaald")
+            default_model = config_manager.get_env("DEFAULT_WHISPER_MODEL", "large")
+        
+        print(f"[DEBUG] Gekozen Whisper type: {default_whisper_type}, model: {default_model}")
+        
+        if whisper_manager.initialize(default_whisper_type, default_model):
+            print(f"✅ Whisper Manager geïnitialiseerd met {default_whisper_type} model: {default_model}")
+        else:
+            print("⚠️ Whisper Manager initialisatie gefaald")
         
         # Controleer FFmpeg
         if audio_processor.is_ffmpeg_available():
@@ -109,7 +124,7 @@ class MagicTimeStudioPyQt6:
         # Maak hoofdvenster
         self.main_window = MainWindow()
         
-        # Verbind signals
+        # Connect signals
         self.main_window.processing_started.connect(self._on_start_processing)
         self.main_window.processing_stopped.connect(self._on_stop_processing)
         self.main_window.file_selected.connect(self._on_file_selected)
@@ -252,20 +267,17 @@ class MagicTimeStudioPyQt6:
                 # Voeg ook toe aan console output voor real-time updates
                 self.main_window.processing_panel.add_console_output(message)
                 
-                # Update console progress indicator voor Whisper progress updates
-                if "🎤 Whisper:" in message and "%" in message:
-                    # Parse Whisper progress uit bericht
+                # Update console progress indicator voor Fast Whisper progress updates
+                if "🎤 Fast Whisper:" in message and "%" in message:
+                    # Parse Fast Whisper progress uit bericht
                     try:
-                        # Zoek naar percentage in het bericht (bijv. "🎤 Whisper: 45.5% - filename")
-                        percent_str = message.split("%")[0].split(":")[-1].strip()
-                        whisper_percent = float(percent_str) / 100.0  # Converteer naar 0.0-1.0
-                        
-                        # Bereken totale verwerking progress (Whisper is 15-65% van totaal)
-                        # Dit is een schatting, maar geeft een realistische progress
-                        total_progress = 0.15 + (whisper_percent * 0.5)  # 15% + (whisper_progress * 50%)
-                        self.main_window.processing_panel.update_console_progress(total_progress)
-                    except (ValueError, IndexError):
-                        pass  # Stil falen als parsing niet lukt
+                        # Zoek naar percentage in het bericht (bijv. "🎤 Fast Whisper: 45.5% - filename")
+                        percent_str = message.split("🎤 Fast Whisper:")[1].split("%")[0].strip()
+                        percent = float(percent_str)
+                        # Update console met Fast Whisper progress
+                        print(f"🔍 [DEBUG] Fast Whisper progress: {percent:.1f}% - {message}")
+                    except:
+                        pass
             
             # Voeg ook toe aan logging systeem voor log viewer
             try:

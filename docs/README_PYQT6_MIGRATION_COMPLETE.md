@@ -87,7 +87,7 @@ python magic_time_studio\run.py
 
 ### **LibreTranslate Server Instellingen:**
 1. **Instellingen → Configuratie** - Voor server instellingen
-2. **Server URL** - Jouw LibreTranslate server (standaard: `100.90.127.78:5000`)
+2. **Server URL** - Jouw LibreTranslate server (bijv. `localhost:5000`)
 3. **Timeout** - Request timeout in seconden
 4. **Max karakters** - Maximum karakters per vertaling
 

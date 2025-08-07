@@ -121,4 +121,5 @@ class WindowSetupMixin:
     
     def periodic_update(self):
         """Periodieke update functie"""
-        self.settings_panel.settings_panel.update_translator_status() 
+        # Verwijderd: update_translator_status() is niet meer beschikbaar
+        pass 
