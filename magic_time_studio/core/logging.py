@@ -6,8 +6,7 @@ import os
 import datetime
 import queue
 import threading
-from typing import Optional, Tuple
-from magic_time_studio.core.config import config_manager
+from typing import Optional, Tuple, Any
 
 # Globale variabelen
 log_queue = queue.Queue()
@@ -21,28 +20,53 @@ class Logger:
         self.log_queue = queue.Queue()
         self.log_text_widget = None
         
-        # Laad logging configuratie uit environment variables
-        self.log_to_file = config_manager.get_env("LOG_TO_FILE", "false").lower() == "true"
-        self.log_level = config_manager.get_env("LOG_LEVEL", "INFO").upper()
+        # Lazy import van config_manager om circulaire import te voorkomen
+        self._config_manager = None
         
-        # Debug output voor logging configuratie
-        print(f"🔧 [DEBUG] Logger configuratie:")
-        print(f"🔧 [DEBUG] LOG_TO_FILE: {self.log_to_file}")
-        print(f"🔧 [DEBUG] LOG_LEVEL: {self.log_level}")
+        # Laad logging configuratie uit environment variables
+        self.log_to_file = self._get_config("LOG_TO_FILE", "false").lower() == "true"
+        self.log_level = self._get_config("LOG_LEVEL", "INFO").upper()
+        
+        # Debug output voor logging configuratie (alleen in debug mode)
+        if self.log_level == "DEBUG":
+            print(f"🔧 [DEBUG] Logger configuratie:")
+            print(f"🔧 [DEBUG] LOG_TO_FILE: {self.log_to_file}")
+            print(f"🔧 [DEBUG] LOG_LEVEL: {self.log_level}")
         
         # Log bestand pad
         if self.log_to_file:
-            log_file_path = config_manager.get_env("LOG_FILE_PATH", "")
+            log_file_path = self._get_config("LOG_FILE_PATH", "")
             if log_file_path:
                 self.log_path = log_file_path
             else:
-                self.log_path = os.path.join(USER_OUTPUT_DIR, "MagicTime_debug_log.txt")
+                self.log_path = os.path.join(USER_OUTPUT_DIR, "logs")
         else:
             self.log_path = None
         
         # Zorg ervoor dat output directory bestaat
         os.makedirs(USER_OUTPUT_DIR, exist_ok=True)
     
+    def _get_config(self, key: str, default: Any = "") -> Any:
+        """Lazy config manager import om circulaire import te voorkomen"""
+        if self._config_manager is None:
+            try:
+                from .config import config_manager
+                self._config_manager = config_manager
+            except ImportError:
+                # Fallback naar environment variables
+                if key == "logging_config":
+                    return {"debug": True, "info": True, "warning": True, "error": True}
+                return os.getenv(key, default)
+        
+        if self._config_manager:
+            if key == "logging_config":
+                return self._config_manager.get("logging_config", {"debug": True, "info": True, "warning": True, "error": True})
+            return self._config_manager.get_env(key, default)
+        else:
+            if key == "logging_config":
+                return {"debug": True, "info": True, "warning": True, "error": True}
+            return os.getenv(key, default)
+
     def add_log_message(self, msg: str, level: str = "INFO") -> None:
         """Voeg een bericht toe aan de log queue voor real-time updates"""
         timestamp = datetime.datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
@@ -79,15 +103,19 @@ class Logger:
     
     def log_debug(self, msg: str, category: str = "debug") -> None:
         """Log een bericht met debug level en categorie filtering"""
-        logging_config = config_manager.get("logging_config", {})
-        
         # Controleer of deze categorie gelogd moet worden
         # Forceer debug mode als LOG_LEVEL=DEBUG
         if self.log_level == "DEBUG":
             # Toon alle berichten in debug mode
             pass
-        elif category in logging_config and not logging_config[category]:
-            return
+        else:
+            # Eenvoudige categorie filtering zonder complexe config
+            if category in ["error", "success", "warning"]:
+                pass  # Toon belangrijke berichten
+            else:
+                # Voor andere categorieën, toon alleen in debug mode
+                if self.log_level != "DEBUG":
+                    return
         
         # Voeg timestamp toe
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")

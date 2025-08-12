@@ -7,7 +7,7 @@ import sys
 import time
 import threading
 from typing import Optional, Any, Callable
-from magic_time_studio.core.logging import logger
+from .logging import logger
 
 # GUI update optimalisaties
 GUI_UPDATE_BATCH = []

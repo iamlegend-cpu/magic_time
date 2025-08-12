@@ -5,13 +5,6 @@ Bevat alle processing gerelateerde functies
 
 from typing import List, Dict
 from PyQt6.QtWidgets import QMessageBox, QApplication
-# Import whisper_manager
-try:
-    from magic_time_studio.processing.whisper_manager import whisper_manager
-except ImportError:
-    import sys
-    sys.path.append('..')
-    from processing.whisper_manager import whisper_manager
 import os
 
 class ProcessingHandlersMixin:
@@ -42,6 +35,10 @@ class ProcessingHandlersMixin:
         print(f"🏠 MainWindow: Start verwerking met {len(files)} bestanden")
         self.processing_active = True
         
+        # Start GPU monitoring voor verwerking
+        if hasattr(self, 'charts_panel'):
+            self.charts_panel.start_processing_monitoring()
+        
         # Blokkeer UI tijdens verwerking
         self.block_ui_during_processing(True)
         
@@ -52,6 +49,10 @@ class ProcessingHandlersMixin:
         """Handle processing stop"""
         print("🛑 MainWindow: on_processing_stopped aangeroepen")
         self.processing_active = False
+        
+        # Stop GPU monitoring na verwerking
+        if hasattr(self, 'charts_panel'):
+            self.charts_panel.stop_processing_monitoring()
         
         # Deblokkeer UI na verwerking
         self.block_ui_during_processing(False)
@@ -69,9 +70,8 @@ class ProcessingHandlersMixin:
             # Update button states (verwijder/wis knoppen worden hier gecontroleerd)
             self.files_panel.update_button_states()
             
-            # Reset drag & drop zone
-            if hasattr(self.files_panel, 'drag_drop_zone'):
-                self.files_panel.drag_drop_zone.set_processing_active(False)
+            # Drag & drop zone is verwijderd, gebruik knoppen onderaan venster
+            pass
         
         if hasattr(self, 'settings_panel'):
             # Ontdooi settings panel
@@ -138,9 +138,8 @@ class ProcessingHandlersMixin:
             self.files_panel.clear_btn.setEnabled(True)
             self.files_panel.update_button_states()
             
-            # Reset drag & drop zone
-            if hasattr(self.files_panel, 'drag_drop_zone'):
-                self.files_panel.drag_drop_zone.set_processing_active(False)
+            # Drag & drop zone is verwijderd, gebruik knoppen onderaan venster
+            pass
         
         if hasattr(self, 'settings_panel'):
             # Ontdooi settings panel
@@ -152,7 +151,10 @@ class ProcessingHandlersMixin:
         
         if hasattr(self, 'processing_panel'):
             # Reset processing panel
-            self.processing_panel.processing_finished()
+            if hasattr(self.processing_panel, 'processing_finished'):
+                self.processing_panel.processing_finished()
+            else:
+                print("⚠️ processing_finished methode niet gevonden in processing_panel")
         
         # Enable menu items
         if hasattr(self, 'menuBar'):
@@ -248,6 +250,17 @@ class ProcessingHandlersMixin:
     def stop_processing(self):
         """Stop verwerking via menu"""
         print("🛑 MainWindow: stop_processing aangeroepen")
-        if hasattr(self, 'processing_panel'):
-            self.processing_panel.stop_processing()
-        self.processing_active = False 
+        try:
+            if hasattr(self, 'processing_panel'):
+                print("🛑 MainWindow: Roep processing_panel.stop_processing() aan...")
+                self.processing_panel.stop_processing()
+            else:
+                print("⚠️ MainWindow: processing_panel bestaat niet")
+            
+            # Reset processing_active flag
+            self.processing_active = False
+            print("✅ MainWindow: Stop verwerking voltooid")
+        except Exception as e:
+            print(f"❌ Fout bij stoppen verwerking: {e}")
+            # Probeer alsnog de UI te resetten
+            self.processing_active = False 

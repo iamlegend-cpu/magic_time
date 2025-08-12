@@ -1,101 +1,155 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-import os
-import sys
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+block_cipher = None
 
-# Add the project root to the path
-project_root = os.getcwd()  # Use getcwd() instead of __file__
-sys.path.insert(0, project_root)
-
-# Collect all necessary data files and modules
-datas = []
-binaries = []
-datas.extend(collect_data_files('magic_time_studio'))
-datas.extend(collect_data_files('whisper'))
-datas.extend(collect_data_files('torch'))
-datas.extend(collect_data_files('torchaudio'))
-
-# Add assets directory
-assets_dir = os.path.join(project_root, 'assets')
-if os.path.exists(assets_dir):
-    datas.append((assets_dir, 'assets'))
-
-# Add FFmpeg directly to datas
-ffmpeg_path = os.path.join(project_root, 'assets', 'ffmpeg.exe')
-if os.path.exists(ffmpeg_path):
-    datas.append((ffmpeg_path, '.'))
-    binaries.append((ffmpeg_path, '.'))  # Also add to binaries
-    print(f"FFmpeg toegevoegd aan datas en binaries: {ffmpeg_path}")
-else:
-    print(f"FFmpeg niet gevonden: {ffmpeg_path}")
-
-# Add icon files specifically
-icon_files = [
-    os.path.join(project_root, 'assets', 'Magic_Time_Studio.ico'),
-    os.path.join(project_root, 'assets', 'Magic_Time_Studio_wit.ico'),
+# Data bestanden die meegenomen moeten worden
+datas = [
+    # Assets en configuratie
+    ('assets', 'assets'),
+    ('magic_time_studio/whisper_config.env', '.'),
+    ('magic_time_studio/ui_pyqt6/themes.py', 'ui_pyqt6'),
+    
+    # Whisper modellen en data
+    ('magic_time_studio/whisper_config.env', 'magic_time_studio'),
+    
+    # UI componenten
+    ('magic_time_studio/ui_pyqt6/components', 'ui_pyqt6/components'),
+    
+    # Core modules
+    ('magic_time_studio/core', 'core'),
+    ('magic_time_studio/app_core', 'app_core'),
+    ('magic_time_studio/processing', 'processing'),
+    
+    # Python bestanden die als data moeten worden meegenomen
+    ('magic_time_studio/run.py', '.'),
+    ('magic_time_studio/main_pyqt6.py', '.'),
+    ('magic_time_studio/startup.py', '.'),
 ]
-for icon_file in icon_files:
-    if os.path.exists(icon_file):
-        datas.append((icon_file, 'assets'))
 
-# Hidden imports
+# Verborgen imports die PyInstaller niet automatisch vindt
 hiddenimports = [
-    'magic_time_studio',
-    'magic_time_studio.core',
-    'magic_time_studio.ui_pyqt6',
-    'magic_time_studio.ui_pyqt6.components',
-    'magic_time_studio.ui_pyqt6.features',
-    'magic_time_studio.processing',
-    'magic_time_studio.models',
-    'whisper',
-    'torch',
-    'torchaudio',
-    'PyQt6',
+    # PyQt6
     'PyQt6.QtCore',
-    'PyQt6.QtGui',
+    'PyQt6.QtGui', 
     'PyQt6.QtWidgets',
+    'PyQt6.QtNetwork',
+    
+    # Whisper en Fast Whisper
+    'faster_whisper',
+    'faster_whisper.whisper',
+    'faster_whisper.audio',
+    'faster_whisper.transcribe',
+    'faster_whisper.utils',
+    'faster_whisper.vad',
+    
+    # Torch (PyTorch) - uitgebreide imports voor standaard Whisper
+    'torch',
+    'torch._C',
+    'torch._C._distributed_c10d',
+    'torch._C._distributed_c10d_backend',
+    'torch._C._distributed_c10d_backend_nccl',
+    'torch._C._distributed_c10d_backend_gloo',
+    'torch._C._distributed_c10d_backend_mpi',
+    'torch._C._distributed_c10d_backend_ucc',
+    'torch._C._distributed_c10d_backend_work',
+    'torch._C._distributed_c10d_backend_work_mpi',
+    'torch._C._distributed_c10d_backend_work_nccl',
+    'torch._C._distributed_c10d_backend_work_gloo',
+    'torch._C._distributed_c10d_backend_work_ucc',
+    'torch.nn',
+    'torch.nn.functional',
+    'torch.optim',
+    'torch.utils',
+    'torch.utils.data',
+    'torch.utils.data.dataloader',
+    'torch.utils.data.dataset',
+    'torch.utils.data.sampler',
+    'torch.utils.data.worker',
+    
+    # Whisper (standaard)
+    'whisper',
+    'whisper.audio',
+    'whisper.decoding',
+    'whisper.model',
+    'whisper.normalizers',
+    'whisper.parsing',
+    'whisper.timing',
+    'whisper.transcribe',
+    'whisper.utils',
+    
+    # Audio processing
     'numpy',
     'librosa',
+    'librosa.core',
+    'librosa.feature',
+    'librosa.util',
     'soundfile',
-    'tqdm',
+    'av',
+    'ffmpeg',
+    
+    # Machine learning
+    'numba',
+    'llvmlite',
+    'ctranslate2',
+    'tokenizers',
+    
+    # HTTP requests voor vertaling
+    'requests',
+    'urllib3',
+    'certifi',
+    'charset_normalizer',
+    
+    # Magic Time Studio modules
+    'magic_time_studio.app_core.main_entry',
+    'magic_time_studio.app_core.magic_time_studio_pyqt6',
+    'magic_time_studio.app_core.processing_modules.audio_processing',
+    'magic_time_studio.app_core.processing_modules.video_processing',
+    'magic_time_studio.app_core.processing_modules.whisper_processing',
+    'magic_time_studio.app_core.processing_modules.translation_processing',
+    'magic_time_studio.app_core.processing_thread',
+    'magic_time_studio.ui_pyqt6.main_window',
+    'magic_time_studio.ui_pyqt6.components.settings_panel',
+    'magic_time_studio.ui_pyqt6.components.whisper_selector.whisper_selector_widget',
+    'magic_time_studio.ui_pyqt6.components.whisper_selector.model_load_thread',
+    'magic_time_studio.processing.whisper_manager',
+    'magic_time_studio.processing.translator',
+    'magic_time_studio.processing.video_processor',
+    'magic_time_studio.processing.audio_processor',
+    'magic_time_studio.core.config',
+    'magic_time_studio.core.logging',
 ]
 
-# Exclude unnecessary modules to reduce size
+# Exclude onnodige modules om de exe kleiner te maken
 excludes = [
-    'matplotlib',
-    'scipy.spatial.cKDTree',
-    'scipy.spatial.transform',
-    'scipy.special',
-    'scipy.stats',
-    'PIL',
     'tkinter',
+    'matplotlib',
+    'scipy',
+    'pandas',
     'IPython',
     'jupyter',
     'notebook',
-    'pandas',
-    'seaborn',
-    'plotly',
-    'bokeh',
+    'pytest',
+    'unittest',
 ]
 
 a = Analysis(
-    ['magic_time_studio/main_pyqt6.py'],
-    pathex=[project_root],
-    binaries=binaries,
+    ['magic_time_studio/run.py'],
+    pathex=[],
+    binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,
-    hookspath=[os.path.join(project_root, 'tools', 'hooks')],
+    hookspath=['tools/hooks'],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['tools/hooks/runtime_hook.py'],
     excludes=excludes,
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
-    cipher=None,
+    cipher=block_cipher,
     noarchive=False,
+    datas_excludes=['**/test*', '**/tests*', '**/doc*', '**/docs*'],
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=None)
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(
     pyz,
@@ -107,13 +161,14 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,  # Console window behouden voor debugging
+    console=True,  # Console venster tonen
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=os.path.join(project_root, 'assets', 'Magic_Time_Studio_wit.ico'),  # Gebruik wit icoon voor betere zichtbaarheid
+    icon='assets/Magic_Time_Studio.ico',  # Hoofdicon
+    noconfirm=True,  # Automatisch overschrijven zonder bevestiging
 )
 
 coll = COLLECT(
@@ -124,5 +179,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='Magic_Time_Studio',
-) 
+    name='Magic_Time_Studio'
+)

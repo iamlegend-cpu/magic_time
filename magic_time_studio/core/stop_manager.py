@@ -8,16 +8,30 @@ import tempfile
 import glob
 import shutil
 import subprocess
+import time
+import threading
 from typing import List, Optional
 
-# Absolute imports in plaats van relative imports
-try:
-    from magic_time_studio.core.config import config_manager
-except ImportError:
-    # Fallback voor directe import
-    import sys
-    sys.path.append('..')
-    from core.config import config_manager
+# Lazy import om circulaire import te voorkomen
+_config_manager = None
+
+def _get_config_manager():
+    """Lazy config manager import om circulaire import te voorkomen"""
+    global _config_manager
+    if _config_manager is None:
+        try:
+            from .config import config_manager
+            _config_manager = config_manager
+        except ImportError:
+            # Fallback voor directe import
+            import sys
+            sys.path.append('..')
+            try:
+                from core.config import config_manager
+                _config_manager = config_manager
+            except ImportError:
+                _config_manager = None
+    return _config_manager
 
 
 class StopManager:
@@ -26,6 +40,7 @@ class StopManager:
     def __init__(self):
         self.processing_thread = None
         self.main_window = None
+        self._stop_timeout = 5  # 5 seconden timeout voor stoppen
     
     def set_processing_thread(self, thread):
         """Stel de processing thread in"""
@@ -36,55 +51,171 @@ class StopManager:
         self.main_window = window
     
     def stop_all_processes(self):
-        """Stop alle processen en ruim temp bestanden op"""
-        print("🛑 StopManager: Stop alle processen...")
+        """Stop alle processen en ruim temp bestanden op binnen 5 seconden"""
+        print("🛑 StopManager: Stop alle processen binnen 5 seconden...")
+        start_time = time.time()
         
-        # Stop processing thread
-        if self.processing_thread and self.processing_thread.isRunning():
+        # Stop processing thread eerst
+        if self.processing_thread and hasattr(self.processing_thread, 'isRunning') and self.processing_thread.isRunning():
             print("🛑 Stop processing thread...")
-            self.processing_thread.stop()
-            self.processing_thread.wait(5000)  # Wacht max 5 seconden
+            try:
+                self.processing_thread.stop()
+                # Wacht maximaal 1 seconde voor processing thread
+                if hasattr(self.processing_thread, 'wait'):
+                    self.processing_thread.wait(1000)
+                print("✅ Processing thread gestopt")
+            except Exception as e:
+                print(f"⚠️ Fout bij stoppen processing thread: {e}")
         
-        # Stop Whisper processen
-        self._stop_whisper_processes()
+        # Stop alle processen parallel voor snellere stop
+        stop_threads = []
         
-        # Stop LibreTranslate processen
-        self._stop_libretranslate_processes()
+        # Stop Whisper processen in aparte thread
+        whisper_thread = threading.Thread(target=self._stop_whisper_processes, daemon=True)
+        whisper_thread.start()
+        stop_threads.append(whisper_thread)
         
-        # Stop FFmpeg processen
-        self._stop_ffmpeg_processes()
+        # Stop LibreTranslate processen in aparte thread
+        libretranslate_thread = threading.Thread(target=self._stop_libretranslate_processes, daemon=True)
+        libretranslate_thread.start()
+        stop_threads.append(libretranslate_thread)
+        
+        # Stop FFmpeg processen in aparte thread
+        ffmpeg_thread = threading.Thread(target=self._stop_ffmpeg_processes, daemon=True)
+        ffmpeg_thread.start()
+        stop_threads.append(ffmpeg_thread)
+        
+        # Wacht tot alle stop threads klaar zijn (max 1 seconde)
+        for thread in stop_threads:
+            thread.join(timeout=1.0)
         
         # Ruim temp bestanden op
-        self._cleanup_temp_files()
+        cleanup_thread = threading.Thread(target=self._cleanup_temp_files, daemon=True)
+        cleanup_thread.start()
+        cleanup_thread.join(timeout=0.5)
         
         # Reset processing_active flag
         if self.main_window:
-            self.main_window.processing_active = False
+            try:
+                self.main_window.processing_active = False
+                # Roep ook de processing_finished methode aan als die bestaat
+                if hasattr(self.main_window, 'processing_finished'):
+                    self.main_window.processing_finished()
+            except Exception as e:
+                print(f"⚠️ Fout bij resetten main window: {e}")
         
-        print("✅ StopManager: Alle processen gestopt en temp bestanden opgeruimd")
+        elapsed_time = time.time() - start_time
+        print(f"✅ StopManager: Alle processen gestopt en temp bestanden opgeruimd in {elapsed_time:.1f}s")
+        
+        # Als er nog steeds processen draaien, forceer stop
+        if elapsed_time > 2.0:
+            print("⚠️ StopManager: Stop duurde te lang, forceer stop van resterende processen...")
+            self.force_kill_processes()
+        
+        # Forceer stop van alle Python processen die nog draaien
+        try:
+            import psutil
+            current_process = psutil.Process()
+            children = current_process.children(recursive=True)
+            for child in children:
+                try:
+                    cmdline = " ".join(child.cmdline()).lower()
+                    if any(keyword in cmdline for keyword in ["ffmpeg", "whisper", "python", "faster-whisper"]):
+                        print(f"💀 Forceer stop van subproces: {child.pid} - {cmdline[:50]}")
+                        child.kill()
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+        except Exception as e:
+            print(f"⚠️ Fout bij forceer stop van subprocessen: {e}")
+        
+        # Forceer stop van alle processen met relevante keywords
+        try:
+            import psutil
+            keywords = ["whisper", "faster-whisper", "ffmpeg", "libretranslate", "translate", "python"]
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    cmdline = proc.info.get('cmdline', [])
+                    cmdline_str = " ".join(cmdline).lower()
+                    
+                    if any(keyword in cmdline_str for keyword in keywords):
+                        print(f"💀 Forceer stop van proces: {proc.info['pid']} - {proc.info['name']}")
+                        proc.kill()
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    pass
+        except Exception as e:
+            print(f"⚠️ Fout bij forceer stop van processen: {e}")
     
     def _stop_whisper_processes(self):
-        """Stop Whisper processen"""
+        """Stop alle Whisper processen die mogelijk vastlopen"""
         try:
-            import whisper
-            if hasattr(whisper, 'model_cache'):
-                print("🗑️ Ruim Whisper model cache op...")
-                whisper.model_cache.clear()
+            print("🛑 StopManager: Stop alle Whisper processen...")
+            
+            # Zoek naar Python processen die Whisper gebruiken
+            try:
+                import psutil
+                for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                    try:
+                        cmdline = proc.info['cmdline']
+                        if cmdline and any('whisper' in arg.lower() for arg in cmdline):
+                            print(f"🛑 StopManager: Stop Whisper proces {proc.info['pid']}")
+                            proc.terminate()
+                            proc.wait(timeout=5)
+                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired):
+                        pass
+            except ImportError:
+                print("🛑 StopManager: psutil niet beschikbaar, gebruik alternatieve methode")
+                # Alternatieve methode zonder psutil
+                try:
+                    if os.name == 'nt':  # Windows
+                        os.system('taskkill /f /im python.exe 2>nul')
+                    else:  # Linux/Mac
+                        os.system('pkill -f whisper 2>/dev/null')
+                except:
+                    pass
+            
+            print("✅ StopManager: Whisper processen gestopt")
+            
         except Exception as e:
-            print(f"⚠️ Kon Whisper cache niet opruimen: {e}")
-        
-        # Stop Whisper subprocessen
-        self._stop_subprocesses_by_keywords(["whisper", "python"])
+            print(f"⚠️ StopManager: Fout bij stoppen Whisper processen: {e}")
+    
+    def force_stop_whisper(self):
+        """Forceer stop van alle Whisper processen"""
+        try:
+            print("🛑 StopManager: Forceer stop van alle Whisper processen...")
+            
+            # Gebruik agressievere methode
+            try:
+                import psutil
+                for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                    try:
+                        cmdline = proc.info['cmdline']
+                        if cmdline and any('whisper' in arg.lower() for arg in cmdline):
+                            print(f"🛑 StopManager: Forceer stop Whisper proces {proc.info['pid']}")
+                            proc.kill()
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        pass
+            except ImportError:
+                # Alternatieve methode
+                if os.name == 'nt':  # Windows
+                    os.system('taskkill /f /im python.exe /f 2>nul')
+                else:  # Linux/Mac
+                    os.system('pkill -9 -f whisper 2>/dev/null')
+            
+            print("✅ StopManager: Alle Whisper processen geforceerd gestopt")
+            
+        except Exception as e:
+            print(f"⚠️ StopManager: Fout bij geforceerd stoppen: {e}")
     
     def _stop_libretranslate_processes(self):
         """Stop LibreTranslate processen"""
         try:
             import requests
             # Probeer LibreTranslate te stoppen als het draait
-            translator_url = config_manager.get_env("LIBRETRANSLATE_SERVER", "")
+            config_mgr = _get_config_manager()
+            translator_url = config_mgr.get_env("LIBRETRANSLATE_SERVER", "") if config_mgr else ""
             if translator_url:
                 try:
-                    response = requests.get(f"http://{translator_url}/health", timeout=2)
+                    response = requests.get(f"http://{translator_url}/health", timeout=1)
                     if response.status_code == 200:
                         print("🛑 LibreTranslate is actief, maar kan niet gestopt worden via API")
                 except:
@@ -94,10 +225,12 @@ class StopManager:
         
         # Stop LibreTranslate subprocessen
         self._stop_subprocesses_by_keywords(["libretranslate", "translate"])
+        self._force_stop_processes_by_keywords(["libretranslate", "translate"])
     
     def _stop_ffmpeg_processes(self):
         """Stop FFmpeg processen"""
         self._stop_subprocesses_by_keywords(["ffmpeg"])
+        self._force_stop_processes_by_keywords(["ffmpeg"])
     
     def _stop_subprocesses_by_keywords(self, keywords: List[str]):
         """Stop subprocessen op basis van keywords in command line"""
@@ -117,7 +250,7 @@ class StopManager:
                         print(f"🛑 Stop subproces: {child.pid} - {' '.join(cmdline[:3])}")
                         child.terminate()
                         try:
-                            child.wait(timeout=3)  # Wacht 3 seconden
+                            child.wait(timeout=1)  # Wacht 1 seconde
                         except psutil.TimeoutExpired:
                             print(f"⚠️ Forceer stop van proces {child.pid}")
                             child.kill()
@@ -125,6 +258,23 @@ class StopManager:
                     pass  # Proces bestaat niet meer of geen toegang
         except Exception as e:
             print(f"⚠️ Kon subprocessen niet stoppen: {e}")
+    
+    def _force_stop_processes_by_keywords(self, keywords: List[str]):
+        """Forceer stop van processen op basis van keywords"""
+        try:
+            import psutil
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    cmdline = proc.info.get('cmdline', [])
+                    cmdline_str = " ".join(cmdline).lower()
+                    
+                    if any(keyword in cmdline_str for keyword in keywords):
+                        print(f"💀 Forceer stop van proces: {proc.info['pid']} - {proc.info['name']}")
+                        proc.kill()
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    pass
+        except Exception as e:
+            print(f"⚠️ Kon processen niet forceer stoppen: {e}")
     
     def _cleanup_temp_files(self):
         """Ruim alle temp bestanden op"""
@@ -203,6 +353,20 @@ class StopManager:
                     child.kill()
                 except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                     pass
+            
+            # Zoek ook naar processen met relevante keywords
+            keywords = ["whisper", "faster-whisper", "ffmpeg", "libretranslate", "translate", "python"]
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    cmdline = proc.info.get('cmdline', [])
+                    cmdline_str = " ".join(cmdline).lower()
+                    
+                    if any(keyword in cmdline_str for keyword in keywords):
+                        print(f"💀 Forceer stop van proces: {proc.info['pid']} - {proc.info['name']}")
+                        proc.kill()
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    pass
+                    
         except Exception as e:
             print(f"⚠️ Kon processen niet forceer stoppen: {e}")
 

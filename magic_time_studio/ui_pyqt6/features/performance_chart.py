@@ -25,36 +25,53 @@ class PerformanceChart(QWidget):
         """Setup de UI"""
         layout = QVBoxLayout(self)
         
-        # Titel
+        self._add_title(layout)
+        self._add_charts(layout)
+        self._add_info_labels(layout)
+    
+    def _add_title(self, layout):
+        """Voeg titel toe aan de layout"""
         title = QLabel("⚡ Performance Metrics")
         title.setStyleSheet("font-weight: bold; font-size: 14px; color: #ffffff;")
         layout.addWidget(title)
-        
-        # Charts container - verticale layout met horizontale grafieken
+    
+    def _add_charts(self, layout):
+        """Voeg performance charts toe"""
         charts_layout = QVBoxLayout()
         charts_layout.setSpacing(10)  # Spacing tussen grafieken
         
         # I/O Chart
+        io_group = self._create_io_chart()
+        charts_layout.addWidget(io_group)
+        
+        # Network Chart
+        network_group = self._create_network_chart()
+        charts_layout.addWidget(network_group)
+        
+        layout.addLayout(charts_layout)
+    
+    def _create_io_chart(self):
+        """Maak I/O chart aan"""
         io_group = QGroupBox("💾 I/O Activiteit")
         io_layout = QVBoxLayout(io_group)
         io_layout.setContentsMargins(10, 10, 10, 10)  # Normale margins
         self.io_chart = RealTimeChart("I/O Activiteit", max_points=30)
         self.io_chart.setMinimumHeight(80)  # Kleinere hoogte voor horizontale layout
         io_layout.addWidget(self.io_chart)
-        charts_layout.addWidget(io_group)
-        
-        # Network Chart
+        return io_group
+    
+    def _create_network_chart(self):
+        """Maak netwerk chart aan"""
         network_group = QGroupBox("🌐 Netwerk")
         network_layout = QVBoxLayout(network_group)
         network_layout.setContentsMargins(10, 10, 10, 10)
         self.network_chart = RealTimeChart("Netwerk", max_points=30)
         self.network_chart.setMinimumHeight(80)
         network_layout.addWidget(self.network_chart)
-        charts_layout.addWidget(network_group)
-        
-        layout.addLayout(charts_layout)
-        
-        # Performance info - horizontale layout
+        return network_group
+    
+    def _add_info_labels(self, layout):
+        """Voeg info labels toe"""
         info_layout = QHBoxLayout()
         info_layout.setSpacing(15)  # Normale spacing
         
@@ -87,50 +104,70 @@ class PerformanceChart(QWidget):
     def update_performance_stats(self):
         """Update performance statistieken"""
         try:
-            # I/O statistieken
-            io_counters = psutil.disk_io_counters()
-            if io_counters:
-                io_read_mb = io_counters.read_bytes / (1024**2)
-                io_write_mb = io_counters.write_bytes / (1024**2)
-                
-                # Bereken snelheid (verschil met vorige meting)
-                if hasattr(self, 'prev_io_read'):
-                    io_read_speed = (io_read_mb - self.prev_io_read) / 2  # MB/s
-                    io_write_speed = (io_write_mb - self.prev_io_write) / 2  # MB/s
-                    total_io_speed = io_read_speed + io_write_speed
-                    
-                    self.io_chart.add_data_point(total_io_speed)
-                    self.io_label.setText(f"I/O: {total_io_speed:.1f} MB/s")
-                
-                self.prev_io_read = io_read_mb
-                self.prev_io_write = io_write_mb
-            
-            # Netwerk statistieken
-            network_counters = psutil.net_io_counters()
-            if network_counters:
-                network_sent_mb = network_counters.bytes_sent / (1024**2)
-                network_recv_mb = network_counters.bytes_recv / (1024**2)
-                
-                # Bereken snelheid
-                if hasattr(self, 'prev_network_sent'):
-                    network_sent_speed = (network_sent_mb - self.prev_network_sent) / 2
-                    network_recv_speed = (network_recv_mb - self.prev_network_recv) / 2
-                    total_network_speed = network_sent_speed + network_recv_speed
-                    
-                    self.network_chart.add_data_point(total_network_speed)
-                    self.network_label.setText(f"Netwerk: {total_network_speed:.1f} MB/s")
-                
-                self.prev_network_sent = network_sent_mb
-                self.prev_network_recv = network_recv_mb
-            
-            # Uptime
-            boot_time = datetime.fromtimestamp(psutil.boot_time())
-            uptime = datetime.now() - boot_time
-            uptime_str = str(uptime).split('.')[0]  # Verwijder microseconden
-            self.uptime_label.setText(f"Uptime: {uptime_str}")
-            
+            self._update_io_stats()
+            self._update_network_stats()
+            self._update_uptime()
         except Exception as e:
             print(f"❌ Fout bij performance monitoring: {e}")
+    
+    def _update_io_stats(self):
+        """Update I/O statistieken"""
+        try:
+            io_counters = psutil.disk_io_counters()
+            if not io_counters:
+                return
+                
+            io_read_mb = io_counters.read_bytes / (1024**2)
+            io_write_mb = io_counters.write_bytes / (1024**2)
+            
+            # Bereken snelheid (verschil met vorige meting)
+            if hasattr(self, 'prev_io_read'):
+                io_read_speed = (io_read_mb - self.prev_io_read) / 2  # MB/s
+                io_write_speed = (io_write_mb - self.prev_io_write) / 2  # MB/s
+                total_io_speed = io_read_speed + io_write_speed
+                
+                # Controleer of de chart correct is geïnitialiseerd
+                if hasattr(self, 'io_chart') and self.io_chart and hasattr(self.io_chart, 'add_data_point'):
+                    self.io_chart.add_data_point(total_io_speed)
+                self.io_label.setText(f"I/O: {total_io_speed:.1f} MB/s")
+            
+            self.prev_io_read = io_read_mb
+            self.prev_io_write = io_write_mb
+        except Exception as e:
+            print(f"⚠️ Fout bij I/O stats update: {e}")
+    
+    def _update_network_stats(self):
+        """Update netwerk statistieken"""
+        try:
+            network_counters = psutil.net_io_counters()
+            if not network_counters:
+                return
+                
+            network_sent_mb = network_counters.bytes_sent / (1024**2)
+            network_recv_mb = network_counters.bytes_recv / (1024**2)
+            
+            # Bereken snelheid
+            if hasattr(self, 'prev_network_sent'):
+                network_sent_speed = (network_sent_mb - self.prev_network_sent) / 2
+                network_recv_speed = (network_recv_mb - self.prev_network_recv) / 2
+                total_network_speed = network_sent_speed + network_recv_speed
+                
+                # Controleer of de chart correct is geïnitialiseerd
+                if hasattr(self, 'network_chart') and self.network_chart and hasattr(self.network_chart, 'add_data_point'):
+                    self.network_chart.add_data_point(total_network_speed)
+                self.network_label.setText(f"Netwerk: {total_network_speed:.1f} MB/s")
+            
+            self.prev_network_sent = network_sent_mb
+            self.prev_network_recv = network_recv_mb
+        except Exception as e:
+            print(f"⚠️ Fout bij netwerk stats update: {e}")
+    
+    def _update_uptime(self):
+        """Update uptime informatie"""
+        boot_time = datetime.fromtimestamp(psutil.boot_time())
+        uptime = datetime.now() - boot_time
+        uptime_str = str(uptime).split('.')[0]  # Verwijder microseconden
+        self.uptime_label.setText(f"Uptime: {uptime_str}")
     
     def update_whisper_speed(self, speed: float):
         """Update Whisper snelheid (seconden per minuut audio)"""
@@ -141,3 +178,25 @@ class PerformanceChart(QWidget):
         """Update vertaling snelheid (woorden per seconde)"""
         # Deze methode kan later worden uitgebreid
         pass 
+    
+    def start_processing_monitoring(self):
+        """Start snelle monitoring tijdens verwerking"""
+        try:
+            # Verhoog update frequentie tijdens verwerking
+            if hasattr(self, 'update_timer'):
+                self.update_timer.stop()
+                self.update_timer.start(1000)  # Elke seconde tijdens verwerking
+            print("✅ Snelle performance monitoring gestart voor verwerking")
+        except Exception as e:
+            print(f"⚠️ Fout bij starten snelle performance monitoring: {e}")
+    
+    def stop_processing_monitoring(self):
+        """Stop snelle monitoring na verwerking"""
+        try:
+            # Herstel normale update frequentie
+            if hasattr(self, 'update_timer'):
+                self.update_timer.stop()
+                self.update_timer.start(2000)  # Terug naar elke 2 seconden
+            print("✅ Normale performance monitoring hersteld na verwerking")
+        except Exception as e:
+            print(f"⚠️ Fout bij stoppen snelle performance monitoring: {e}") 

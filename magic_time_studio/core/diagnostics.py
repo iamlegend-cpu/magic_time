@@ -4,9 +4,8 @@ Bevat Whisper diagnose, CUDA test en documentatie openen
 """
 
 import webbrowser
-from magic_time_studio.processing.whisper_manager import whisper_manager
-from magic_time_studio.processing import audio_processor
-from magic_time_studio.processing import translator
+# Import processing modules
+from .all_functions import *
 
 def whisper_diagnose():
     """Geef informatie over het geladen Whisper-model"""

@@ -3,10 +3,13 @@ Progress tracking voor Magic Time Studio
 """
 
 import time
-from datetime import timedelta
-from typing import Optional
-from magic_time_studio.core.utils import safe_config
-from magic_time_studio.core.logging import logger
+import threading
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+
+from core.utils import safe_config
+from core.logging import logger
 
 class ProgressTracker:
     """Beheert voortgang tracking voor video verwerking"""

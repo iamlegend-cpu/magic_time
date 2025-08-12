@@ -4,10 +4,17 @@ Bevat alle window setup en configuratie functies
 """
 
 import os
-from PyQt6.QtWidgets import QMainWindow, QApplication, QStatusBar
+from PyQt6.QtWidgets import QMainWindow, QApplication, QStatusBar, QWidget
 from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QIcon
-from magic_time_studio.core.config import config_manager
+# Lazy import van config_manager om circulaire import te voorkomen
+def _get_config_manager():
+    """Lazy config manager import om circulaire import te voorkomen"""
+    try:
+        from core.config import config_manager
+        return config_manager
+    except ImportError:
+        return None
 
 class WindowSetupMixin:
     """Mixin voor window setup functionaliteit"""
@@ -108,10 +115,56 @@ class WindowSetupMixin:
             print(f"❌ Fout bij instellen taakbalk icoon: {e}")
     
     def create_status_bar(self):
-        """Maak de statusbalk"""
+        """Maak de statusbalk met voortgangsbalk"""
+        from PyQt6.QtWidgets import QProgressBar, QLabel, QHBoxLayout, QWidget
+        from PyQt6.QtCore import Qt
+        
+        # Maak statusbalk
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
+        
+        # Maak widget voor voortgangsbalk en status
+        status_widget = QWidget()
+        status_layout = QHBoxLayout(status_widget)
+        status_layout.setContentsMargins(0, 0, 0, 0)
+        status_layout.setSpacing(10)
+        
+        # Status label
+        self.status_label = QLabel("Klaar")
+        self.status_label.setMinimumWidth(200)
+        status_layout.addWidget(self.status_label)
+        
+        # Voortgangsbalk
+        self.status_progress_bar = QProgressBar()
+        self.status_progress_bar.setMinimumWidth(150)
+        self.status_progress_bar.setMaximumWidth(200)
+        self.status_progress_bar.setRange(0, 100)
+        self.status_progress_bar.setValue(0)
+        self.status_progress_bar.setVisible(False)  # Verborgen totdat er verwerking is
+        self.status_progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #555555;
+                border-radius: 3px;
+                text-align: center;
+                background-color: #2e2e2e;
+                color: #ffffff;
+                font-size: 10px;
+            }
+            QProgressBar::chunk {
+                background-color: #4caf50;
+                border-radius: 2px;
+            }
+        """)
+        status_layout.addWidget(self.status_progress_bar)
+        
+        # Voeg widget toe aan statusbalk
+        self.status_bar.addWidget(status_widget)
+        
+        # Stel standaard bericht in
         self.status_bar.showMessage("Klaar")
+        
+        # Verbind status label met statusbalk
+        self.status_label.setText("Klaar")
     
     def setup_timers(self):
         """Setup timers voor real-time updates"""

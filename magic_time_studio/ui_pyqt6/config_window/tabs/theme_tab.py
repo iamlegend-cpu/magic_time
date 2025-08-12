@@ -7,8 +7,8 @@ from PyQt6.QtWidgets import (
     QGroupBox, QComboBox, QTextEdit, QLineEdit
 )
 
-from magic_time_studio.core.config import config_manager
-from magic_time_studio.ui_pyqt6.features.modern_styling import ModernStyling
+from core.config import config_manager
+from ...features.modern_styling import ModernStyling
 
 class ThemeTab(QWidget):
     """Thema instellingen tab"""

@@ -48,4 +48,18 @@ class ChartsPanel(QWidget):
         
         self.tab_widget.addTab(performance_tab, "⚡ Performance")
         
-        layout.addWidget(self.tab_widget) 
+        layout.addWidget(self.tab_widget)
+    
+    def start_processing_monitoring(self):
+        """Start snelle monitoring tijdens verwerking"""
+        if hasattr(self, 'system_monitor'):
+            self.system_monitor.start_processing_monitoring()
+        if hasattr(self, 'performance_chart'):
+            self.performance_chart.start_processing_monitoring()
+    
+    def stop_processing_monitoring(self):
+        """Stop snelle monitoring na verwerking"""
+        if hasattr(self, 'system_monitor'):
+            self.system_monitor.stop_processing_monitoring()
+        if hasattr(self, 'performance_chart'):
+            self.performance_chart.stop_processing_monitoring() 

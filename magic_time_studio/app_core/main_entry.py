@@ -1,6 +1,8 @@
 import sys
-from magic_time_studio.app_core.magic_time_studio_pyqt6 import MagicTimeStudioPyQt6
-from magic_time_studio.app_core.single_instance import acquire_single_instance_lock, release_single_instance_lock
+import threading
+import time
+from app_core.magic_time_studio_pyqt6 import MagicTimeStudioPyQt6
+from app_core.single_instance import acquire_single_instance_lock, release_single_instance_lock
 
 def main():
     """Hoofdfunctie"""
@@ -24,8 +26,18 @@ def main():
     app.lock_file = lock_file
     
     try:
-        # Start applicatie
-        return app.run()
+
+        
+        # Start applicatie direct in de hoofdthread
+        print("🎬 Start applicatie direct in hoofdthread...")
+        try:
+            result = app.run()
+            return result
+        except Exception as e:
+            print(f"❌ Fout bij starten applicatie: {e}")
+            app.quit_app()
+            return 1
+            
     except KeyboardInterrupt:
         print("\n👋 Applicatie wordt afgesloten...")
         app.quit_app()

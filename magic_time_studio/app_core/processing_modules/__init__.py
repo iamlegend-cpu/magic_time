@@ -1,11 +1,12 @@
 """
-Processing modules voor Magic Time Studio
+Processing Modules voor Magic Time Studio
+Bevat alle verwerking modules voor audio, video, whisper en vertaling
 """
 
-from .audio_processing import AudioProcessor
-from .whisper_processing import WhisperProcessor
-from .translation_processing import TranslationProcessor
-from .video_processing import VideoProcessor
+from .audio_processor import AudioProcessor
+from .whisper_processor import WhisperProcessor
+from .translation_processor import TranslationProcessor
+from .video_processor import VideoProcessor
 
 __all__ = [
     'AudioProcessor',

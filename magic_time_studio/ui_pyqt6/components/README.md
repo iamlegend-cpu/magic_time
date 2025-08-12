@@ -1,10 +1,10 @@
-# UI Components - Magic Time Studio
+#  UI Components - Magic Time Studio
 
 Deze directory bevat alle UI componenten voor Magic Time Studio, georganiseerd volgens functie.
 
-## Panel Structuur
+#  Panel Structuur
 
-### 📁 `files_panel.py`
+#  📁 [files_panel.py](files_panel.py)
 
 Bestanden beheer
 
@@ -12,7 +12,7 @@ Bestanden beheer
 - Functies: bestanden toevoegen, mappen scannen, bestanden verwijderen
 - Features: drag & drop zone, file preview, bestandenlijst
 
-### ⚙️ `processing_panel.py`
+#  ⚙️ [processing_panel.py](processing_panel.py)
 
 Verwerking en progress
 
@@ -20,7 +20,7 @@ Verwerking en progress
 - Functies: model selectie, taal selectie, progress bar, log output
 - Features: start/stop knoppen, real-time progress, status updates
 
-### 📊 `charts_panel.py`
+#  📊 [charts_panel.py](charts_panel.py)
 
 Grafieken en monitoring
 
@@ -28,7 +28,7 @@ Grafieken en monitoring
 - Functies: system monitor, processing progress chart, performance chart
 - Features: real-time data visualisatie, performance tracking
 
-### 🔄 `batch_panel.py`
+#  🔄 [batch_panel.py](batch_panel.py)
 
 Batch verwerking
 
@@ -36,7 +36,7 @@ Batch verwerking
 - Functies: batch queue manager, job scheduling
 - Features: batch job management, queue monitoring
 
-### ✅ `completed_files_panel.py`
+#  ✅ [completed_files_panel.py](completed_files_panel.py)
 
 Voltooide bestanden
 
@@ -44,7 +44,7 @@ Voltooide bestanden
 - Functies: completed files lijst, export functionaliteit, status tracking
 - Features: timestamp tracking, file type icons, export naar tekst/CSV
 
-### 🔌 `plugin_panel.py`
+#  🔌 [plugin_panel.py](plugin_panel.py)
 
 Plugin beheer
 
@@ -52,7 +52,7 @@ Plugin beheer
 - Functies: plugin loading, plugin configuration
 - Features: plugin manager interface
 
-### ⚙️ `settings_panel_wrapper.py`
+#  ⚙️ [settings_panel_wrapper.py](settings_panel_wrapper.py)
 
 Settings wrapper
 
@@ -60,9 +60,9 @@ Settings wrapper
 - Functies: settings panel integratie
 - Features: settings group box styling
 
-## Centrale Import
+#  Centrale Import
 
-### 📄 `panels.py`
+#  📄 [panels.py](panels.py)
 
 Centrale import/export
 
@@ -70,18 +70,23 @@ Centrale import/export
 - Biedt backward compatibility
 - Exporteert alle panel classes via `__all__`
 
-## Gebruik
+#  Gebruik
 
 ```python
-# Import individuele panels
+
+#  Import individuele panels
+
 from .components.files_panel import FilesPanel
 from .components.processing_panel import ProcessingPanel
 
-# Of import via centrale panels.py
+#  Of import via centrale panels.py
+
 from .components.panels import FilesPanel, ProcessingPanel
+
+
 ```
 
-## Voordelen van deze structuur
+#  Voordelen van deze structuur
 
 1. **Modulariteit**: Elke panel heeft zijn eigen bestand
 2. **Onderhoud**: Makkelijker om specifieke functionaliteit te vinden en aan te passen
@@ -89,10 +94,11 @@ from .components.panels import FilesPanel, ProcessingPanel
 4. **Backward Compatibility**: Bestaande imports blijven werken
 5. **Schaalbaarheid**: Nieuwe panels kunnen eenvoudig worden toegevoegd
 
-## Toevoegen van nieuwe panels
+#  Toevoegen van nieuwe panels
 
-1. Maak een nieuw bestand: `new_panel.py`
+1. Maak een nieuw bestand: [new_panel.py](new_panel.py)
 2. Definieer de panel class
-3. Voeg import toe aan `panels.py`
-4. Voeg toe aan `__all__` in `panels.py`
-5. Update `__init__.py` indien nodig
+3. Voeg import toe aan [panels.py](panels.py)
+```
+4. Voeg toe aan `__all__` in [panels.py](panels.py)
+5. Update [__init__.py](__init__.py) indien nodig

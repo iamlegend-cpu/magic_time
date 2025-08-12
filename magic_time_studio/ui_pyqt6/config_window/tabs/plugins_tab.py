@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 
-from magic_time_studio.core.config import config_manager
+from core.config import config_manager
 
 class PluginsTab(QWidget):
     """Plugin beheer tab"""

@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButt
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QPalette, QColor
 
-from magic_time_studio.ui_pyqt6.components.settings_panel import SettingsPanel
+from .settings_panel import SettingsPanel
 
 class SettingsPanelWrapper(QWidget):
     """Wrapper voor settings panel"""

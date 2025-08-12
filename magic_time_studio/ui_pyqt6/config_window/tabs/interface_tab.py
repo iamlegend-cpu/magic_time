@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QGroupBox, QComboBox, QSpinBox, QCheckBox
 )
 
-from magic_time_studio.core.config import config_manager
+from core.config import config_manager
 
 class InterfaceTab(QWidget):
     """Interface instellingen tab"""

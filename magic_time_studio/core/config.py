@@ -11,15 +11,18 @@ from pathlib import Path
 # Standaard configuratie waarden (worden overschreven door .env)
 DEFAULT_CONFIG = {
     "translator": "libretranslate",
-    "subtitle_type": "softcoded",
+    "default_translator": "libretranslate",
+    "libretranslate_server": "http://100.90.127.78:5000",
+    "target_language": "nl",
+    "subtitle_type": "softcoded",  # Altijd softcoded, hardcoded wordt niet meer ondersteund (alleen SRT bestanden)
     "hardcoded_language": "dutch_only",
     "font_size": 9,
     "worker_count": 4,
     "theme": "dark",
-    "debug_mode": False,  # Zet debug mode uit standaard
-    "preserve_original_subtitles": True,  # Behoud originele ondertitels standaard
+    "debug_mode": False,  # Zet debug mode uit standaard (alleen aan in debug mode)
+    "preserve_subtitles": False,  # Maak alleen SRT bestanden, voeg geen ondertiteling toe aan video (geen MP4 verwerking of generatie, origineel blijft ongewijzigd)
     "logging_config": {
-        "debug": True,  # Zet debug logging aan standaard
+        "debug": False,  # Zet debug logging uit standaard
         "info": True,
         "warning": True,
         "error": True
@@ -33,6 +36,14 @@ DEFAULT_CONFIG = {
         "plugins": True,
         "completed": True
     }
+}
+
+# Voeg timeout instellingen toe
+DEFAULT_TIMEOUTS = {
+    "whisper_transcription": 3600,  # 1 uur
+    "audio_extraction": 300,        # 5 minuten
+    "video_processing": 1800,       # 30 minuten
+    "translation": 600              # 10 minuten
 }
 
 # Thema kleuren
@@ -118,6 +129,14 @@ class ConfigManager:
         self.env_vars = self.load_env_variables()
         self.config = self.load_configuration()
         
+    def _is_debug_mode(self) -> bool:
+        """Controleer of debug mode is ingeschakeld"""
+        try:
+            log_level = self.get_env("LOG_LEVEL", "INFO")
+            return log_level.upper() == "DEBUG"
+        except:
+            return False
+        
     def get_user_data_dir(self) -> str:
         """Krijg de gebruiker data directory (niet meer gebruikt voor config.json)"""
         app_name = "MagicTimeStudio"
@@ -139,9 +158,13 @@ class ConfigManager:
             # Laad .env variabelen via _load_config_from_env (zorgt voor juiste mapping)
             env_config = self._load_config_from_env()
             config.update(env_config)
-            # Forceer juiste mapping voor Whisper model en device
+            # Forceer juiste mapping voor Whisper type, model en device
+            if "WHISPER_TYPE" in self.env_vars:
+                config["whisper_type"] = self.env_vars["WHISPER_TYPE"]
             if "DEFAULT_WHISPER_MODEL" in self.env_vars:
                 config["default_whisper_model"] = self.env_vars["DEFAULT_WHISPER_MODEL"]
+            if "DEFAULT_FAST_WHISPER_MODEL" in self.env_vars:
+                config["default_fast_whisper_model"] = self.env_vars["DEFAULT_FAST_WHISPER_MODEL"]
             if "WHISPER_DEVICE" in self.env_vars:
                 config["whisper_device"] = self.env_vars["WHISPER_DEVICE"]
             # Laad JSON configuratie (overschrijft .env)
@@ -159,8 +182,15 @@ class ConfigManager:
         config = {}
         
         # Whisper configuratie
+        config["whisper_type"] = self.get_env("WHISPER_TYPE", "fast")
         config["default_whisper_model"] = self.get_env("DEFAULT_WHISPER_MODEL", "large")
+        config["default_fast_whisper_model"] = self.get_env("DEFAULT_FAST_WHISPER_MODEL", "large-v3-turbo")
         config["whisper_device"] = self.get_env("WHISPER_DEVICE", "cuda")
+        
+        # Vertaling configuratie
+        config["default_translator"] = self.get_env("DEFAULT_TRANSLATOR", "libretranslate")
+        config["libretranslate_server"] = self.get_env("LIBRETRANSLATE_SERVER", "http://100.90.127.78:5000")
+        config["target_language"] = self.get_env("DEFAULT_TARGET_LANGUAGE", "nl")
         
         # Applicatie configuratie
         config["theme"] = self.get_env("DEFAULT_THEME", "dark")
@@ -197,10 +227,15 @@ class ConfigManager:
         # Zoek naar .env bestanden in verschillende locaties
         env_paths = [
             Path(__file__).parent.parent / ".env",  # magic_time_studio/.env
+            Path(__file__).parent.parent / "whisper_config.env",  # magic_time_studio/whisper_config.env
             Path.cwd() / ".env",  # Huidige directory
+            Path.cwd() / "whisper_config.env",  # Huidige directory whisper_config.env
             Path.home() / ".env",  # Home directory
         ]
-        print(f"[DEBUG] Zoek naar .env op: {env_paths}")
+        # Debug output alleen in debug mode
+        if self._is_debug_mode():
+            print(f"[DEBUG] Zoek naar .env op: {env_paths}")
+        
         for env_path in env_paths:
             if env_path.exists():
                 try:
@@ -214,10 +249,14 @@ class ConfigManager:
                                     key = key.strip()
                                     value = value.strip().strip('"').strip("'")
                                     env_vars[key] = value
-                    print(f"[DEBUG] Environment variables geladen van: {env_path}")
+                    if self._is_debug_mode():
+                        print(f"[DEBUG] Environment variables geladen van: {env_path}")
                 except Exception as e:
-                    print(f"[DEBUG] ⚠️ Kon .env bestand niet laden: {env_path} - {e}")
-        print(f"[DEBUG] Gevonden env_vars: {env_vars}")
+                    if self._is_debug_mode():
+                        print(f"[DEBUG] ⚠️ Kon .env bestand niet laden: {env_path} - {e}")
+        
+        if self._is_debug_mode():
+            print(f"[DEBUG] Gevonden env_vars: {env_vars}")
         
         return env_vars
     
@@ -272,6 +311,33 @@ class ConfigManager:
                         
         except Exception as e:
             print(f"⚠️ Kon .env bestand niet opslaan: {e}")
+            
+        # Probeer ook op te slaan in whisper_config.env als dat bestaat
+        try:
+            whisper_env_path = Path(__file__).parent.parent / "whisper_config.env"
+            if whisper_env_path.exists():
+                # Lees bestaande whisper_config.env bestand
+                existing_vars = {}
+                with open(whisper_env_path, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith('#') and '=' in line:
+                            key, value = line.split('=', 1)
+                            existing_vars[key] = value
+                
+                # Update met nieuwe waarden (alleen LibreTranslate gerelateerde)
+                libretranslate_keys = ["LIBRETRANSLATE_SERVER", "DEFAULT_TRANSLATOR", "DEFAULT_TARGET_LANGUAGE"]
+                for key in libretranslate_keys:
+                    if key in self.env_vars:
+                        existing_vars[key] = self.env_vars[key]
+                
+                # Schrijf terug naar whisper_config.env bestand
+                with open(whisper_env_path, 'w', encoding='utf-8') as f:
+                    for key, value in existing_vars.items():
+                        f.write(f"{key}={value}\n")
+                        
+        except Exception as e:
+            print(f"⚠️ Kon whisper_config.env bestand niet opslaan: {e}")
     
     def set(self, key: str, value: Any) -> None:
         """Zet een configuratie waarde"""
@@ -316,6 +382,31 @@ class ConfigManager:
             return True  # Kan niet controleren zonder psutil
         except Exception:
             return True
+
+    def get_timeout(self, timeout_type: str, default: int = None) -> int:
+        """Krijg timeout instelling voor specifiek type"""
+        if default is None:
+            default = DEFAULT_TIMEOUTS.get(timeout_type, 3600)  # Standaard 1 uur
+        
+        # Probeer eerst uit environment variables
+        env_key = f"{timeout_type.upper()}_TIMEOUT"
+        env_value = self.get_env(env_key)
+        if env_value:
+            try:
+                return int(env_value)
+            except ValueError:
+                pass
+        
+        # Fallback naar config bestand
+        config_value = self.get(f"{timeout_type}_timeout")
+        if config_value:
+            try:
+                return int(config_value)
+            except ValueError:
+                pass
+        
+        # Fallback naar default
+        return default
 
 # Globale configuratie instantie
 config_manager = ConfigManager()

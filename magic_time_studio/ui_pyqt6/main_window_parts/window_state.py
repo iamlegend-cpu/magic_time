@@ -3,9 +3,19 @@ Window State Mixin voor MainWindow
 Bevat alle window state gerelateerde functies
 """
 
-from PyQt6.QtWidgets import QMainWindow, QApplication, QMessageBox
 from PyQt6.QtCore import QTimer
-from magic_time_studio.core.config import config_manager
+from PyQt6.QtWidgets import QMainWindow, QMessageBox, QApplication
+from PyQt6.QtGui import QIcon
+import os
+
+# Lazy import van config_manager om circulaire import te voorkomen
+def _get_config_manager():
+    """Lazy config manager import om circulaire import te voorkomen"""
+    try:
+        from core.config import config_manager
+        return config_manager
+    except ImportError:
+        return None
 
 class WindowStateMixin:
     """Mixin voor window state functionaliteit"""
@@ -70,19 +80,22 @@ class WindowStateMixin:
         geometry = self.geometry()
         is_maximized = self.isMaximized()
         
-        config_manager.set("window_geometry", {
-            "x": geometry.x(),
-            "y": geometry.y(),
-            "width": geometry.width(),
-            "height": geometry.height(),
-            "maximized": is_maximized
-        })
-        config_manager.save_configuration()
+        config_mgr = _get_config_manager()
+        if config_mgr:
+            config_mgr.set("window_geometry", {
+                "x": geometry.x(),
+                "y": geometry.y(),
+                "width": geometry.width(),
+                "height": geometry.height(),
+                "maximized": is_maximized
+            })
+            config_mgr.save_configuration()
     
     def restore_window_state(self):
         """Herstel window state"""
         try:
-            geometry_data = config_manager.get("window_geometry", {})
+            config_mgr = _get_config_manager()
+            geometry_data = config_mgr.get("window_geometry", {}) if config_mgr else {}
             if geometry_data:
                 x = geometry_data.get("x", 100)
                 y = geometry_data.get("y", 100)

@@ -6,13 +6,21 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QPalette, QColor
 from PyQt6.QtCore import Qt
 from typing import Dict, Any, Optional
-from ..core.config import config_manager
+# Lazy import van config_manager om circulaire import te voorkomen
+def _get_config_manager():
+    """Lazy config manager import om circulaire import te voorkomen"""
+    try:
+        from core.config import config_manager
+        return config_manager
+    except ImportError:
+        return None
 
 class ThemeManager:
     """Beheert thema's en styling voor de PyQt6 UI"""
     
     def __init__(self):
-        self.current_theme = config_manager.get("theme", "dark")
+        config_mgr = _get_config_manager()
+        self.current_theme = config_mgr.get("theme", "dark") if config_mgr else "dark"
         self.colors = self._get_theme_colors(self.current_theme)
     
     def _get_theme_colors(self, theme_name: str) -> Dict[str, str]:
@@ -56,8 +64,10 @@ class ThemeManager:
         self.colors = self._get_theme_colors(theme_name)
         
         # Sla thema op in configuratie
-        config_manager.set("theme", theme_name)
-        config_manager.save_configuration()
+        config_mgr = _get_config_manager()
+        if config_mgr:
+            config_mgr.set("theme", theme_name)
+            config_mgr.save_configuration()
         
         # Pas thema toe op applicatie
         self._apply_theme_to_app(app)

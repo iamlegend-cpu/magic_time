@@ -5,20 +5,26 @@ Bevat alle menu gerelateerde functies
 
 import os
 from PyQt6.QtWidgets import QFileDialog, QMessageBox, QDialog, QApplication
-from magic_time_studio.ui_pyqt6.config_window import ConfigWindow
-from magic_time_studio.ui_pyqt6.log_viewer import LogViewer
-from magic_time_studio.ui_pyqt6.components.menu_manager import MenuManager
-from magic_time_studio.core.config import config_manager
-from magic_time_studio.processing import translator, audio_processor
-from magic_time_studio.processing.whisper_manager import whisper_manager
-
-# Import whisper_manager
-try:
-    from magic_time_studio.processing.whisper_manager import whisper_manager
-except ImportError:
-    import sys
-    sys.path.append('..')
-    from processing.whisper_manager import whisper_manager
+from ..config_window import ConfigWindow
+from ..log_viewer import LogViewer
+from ..components.menu_manager import MenuManager
+# Lazy import van config_manager om circulaire import te voorkomen
+def _get_config_manager():
+    """Lazy config manager import om circulaire import te voorkomen"""
+    try:
+        from core.config import config_manager
+        return config_manager
+    except ImportError:
+        # Fallback voor directe import
+        import sys
+        sys.path.append('..')
+        try:
+            from core.config import config_manager
+            return config_manager
+        except ImportError:
+            return None
+# Import processing modules
+from core.all_functions import *
 
 class MenuHandlersMixin:
     """Mixin voor menu handler functionaliteit"""
@@ -182,17 +188,36 @@ class MenuHandlersMixin:
         """Performance test"""
         print("📊 Menu: Performance test")
         try:
-            from magic_time_studio.models.performance_tracker import performance_tracker
-            performance_tracker.start_tracking()
-            import time
-            time.sleep(2)
-            report = performance_tracker.generate_report()
-            whisper_status = f"""
-Whisper Model: {'Geladen' if whisper_manager.is_model_loaded() else 'Niet geladen'}
-Whisper Type: {whisper_manager.get_current_whisper_type()}
+            # Import performance tracker
+            try:
+                from models.performance_tracker import performance_tracker
+            except ImportError:
+                performance_tracker = None
+            
+            # Import diagnostics
+            try:
+                from core.diagnostics import whisper_diagnose
+            except ImportError:
+                whisper_diagnose = None
+            
+            try:
+                from core.diagnostics import cuda_test
+            except ImportError:
+                cuda_test = None
+
+            if performance_tracker:
+                performance_tracker.start_tracking()
+                import time
+                time.sleep(2)
+                report = performance_tracker.generate_report()
+                whisper_status = f"""
+Whisper Model: {'Geladen' if whisper_diagnose.is_model_loaded() else 'Niet geladen'}
+Whisper Type: {whisper_diagnose.get_current_whisper_type()}
 """
-            report_text = report + whisper_status
-            QMessageBox.information(self, "Performance Test", report_text)
+                report_text = report + whisper_status
+                QMessageBox.information(self, "Performance Test", report_text)
+            else:
+                QMessageBox.warning(self, "Fout", "Performance tracker module niet gevonden.")
         except Exception as e:
             print(f"❌ Fout bij performance test: {e}")
             QMessageBox.critical(self, "Fout", f"Performance test gefaald: {e}")
@@ -201,7 +226,7 @@ Whisper Type: {whisper_manager.get_current_whisper_type()}
         """Whisper diagnose"""
         print("🎤 Whisper diagnose gestart")
         try:
-            from magic_time_studio.core.diagnostics import whisper_diagnose
+            from core.diagnostics import whisper_diagnose
             result = whisper_diagnose()
             QMessageBox.information(self, "Whisper Diagnose", result)
         except Exception as e:
@@ -212,7 +237,7 @@ Whisper Type: {whisper_manager.get_current_whisper_type()}
         """CUDA test"""
         print("🔧 CUDA test gestart")
         try:
-            from magic_time_studio.core.diagnostics import cuda_test
+            from core.diagnostics import cuda_test
             result = cuda_test()
             QMessageBox.information(self, "CUDA Test", result)
         except Exception as e:
@@ -231,14 +256,18 @@ Whisper Type: {whisper_manager.get_current_whisper_type()}
             self.charts_panel.hide()
             self.splitter.takeWidget(self.charts_panel)
             del self.visible_panels["charts"]
-            config_manager.set_panel_visibility("charts", False)
+            config_mgr = _get_config_manager()
+            if config_mgr:
+                config_mgr.set_panel_visibility("charts", False)
             self.update_status("Grafieken panel verborgen")
         else:
             # Panel is verborgen, toon het
             self.splitter.addWidget(self.charts_panel)
             self.charts_panel.show()
             self.visible_panels["charts"] = self.charts_panel
-            config_manager.set_panel_visibility("charts", True)
+            config_mgr = _get_config_manager()
+            if config_mgr:
+                config_mgr.set_panel_visibility("charts", True)
             self.update_status("Grafieken panel zichtbaar")
         
         # Pas window grootte aan
@@ -251,14 +280,18 @@ Whisper Type: {whisper_manager.get_current_whisper_type()}
             self.batch_panel.hide()
             self.splitter.takeWidget(self.batch_panel)
             del self.visible_panels["batch"]
-            config_manager.set_panel_visibility("batch", False)
+            config_mgr = _get_config_manager()
+            if config_mgr:
+                config_mgr.set_panel_visibility("batch", False)
             self.update_status("Batch panel verborgen")
         else:
             # Panel is verborgen, toon het
             self.splitter.addWidget(self.batch_panel)
             self.batch_panel.show()
             self.visible_panels["batch"] = self.batch_panel
-            config_manager.set_panel_visibility("batch", True)
+            config_mgr = _get_config_manager()
+            if config_mgr:
+                config_mgr.set_panel_visibility("batch", True)
             self.update_status("Batch panel zichtbaar")
         
         # Pas window grootte aan

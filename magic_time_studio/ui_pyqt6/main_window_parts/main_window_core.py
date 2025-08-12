@@ -5,13 +5,13 @@ Hoofdklasse die alle mixins combineert
 
 from PyQt6.QtWidgets import QMainWindow, QApplication
 from PyQt6.QtCore import pyqtSignal
-from magic_time_studio.ui_pyqt6.themes import ThemeManager
-from magic_time_studio.ui_pyqt6.features.modern_styling import ModernStyling
-from magic_time_studio.ui_pyqt6.components.settings_panel_wrapper import SettingsPanelWrapper
-from magic_time_studio.ui_pyqt6.components.files_panel import FilesPanel
-from magic_time_studio.ui_pyqt6.components.processing_panel import ProcessingPanel
-from magic_time_studio.ui_pyqt6.components.charts_panel import ChartsPanel
-from magic_time_studio.ui_pyqt6.components.batch_panel import BatchPanel
+from ..themes import ThemeManager
+from ..features.modern_styling import ModernStyling
+from ..components.settings_panel_wrapper import SettingsPanelWrapper
+from ..components.files_panel import FilesPanel
+from ..components.processing_panel import ProcessingPanel
+from ..components.charts_panel import ChartsPanel
+from ..components.batch_panel import BatchPanel
 
 from .window_setup import WindowSetupMixin
 from .menu_handlers import MenuHandlersMixin
@@ -52,7 +52,7 @@ class MainWindow(
         self.setup_connections()
         
         # Pas moderne styling toe
-        self.modern_styling.apply_theme(QApplication.instance(), "dark")
+        self.theme_manager.apply_theme(QApplication.instance(), "dark")
         
         print("🏠 PyQt6 Hoofdvenster aangemaakt")
     

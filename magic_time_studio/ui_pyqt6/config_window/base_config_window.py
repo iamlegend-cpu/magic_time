@@ -8,8 +8,9 @@ from PyQt6.QtWidgets import (
     QPushButton, QTabWidget, QMessageBox
 )
 from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtGui import QShowEvent
 
-from magic_time_studio.core.config import config_manager
+from core.config import config_manager
 
 # Import alle tab modules
 from .tabs.general_tab import GeneralTab
@@ -42,7 +43,7 @@ class ConfigWindow(QDialog):
         self.tabs = {}
         
         self.setup_ui()
-        self.load_configuration()
+        # Laad configuratie niet automatisch - wordt gedaan wanneer venster wordt getoond
     
     def set_callback(self, callback):
         """Stel callback functie in voor configuratie opslaan"""
@@ -111,12 +112,19 @@ class ConfigWindow(QDialog):
         try:
             # Laad configuratie voor alle tabs
             for tab_name, tab in self.tabs.items():
-                tab.load_configuration()
+                if hasattr(tab, 'load_configuration'):
+                    tab.load_configuration()
             
             print("✅ Configuratie geladen")
             
         except Exception as e:
             print(f"❌ Fout bij laden configuratie: {e}")
+    
+    def showEvent(self, event: QShowEvent):
+        """Event dat wordt aangeroepen wanneer het venster wordt getoond"""
+        super().showEvent(event)
+        # Laad configuratie wanneer venster wordt getoond
+        self.load_configuration()
     
     def save_configuration(self):
         """Sla configuratie op"""

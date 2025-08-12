@@ -6,7 +6,18 @@ Een geavanceerde applicatie voor automatische ondertiteling en vertaling van vid
 __version__ = "2.0.0"
 __author__ = "Magic Time Studio Team"
 
-# Import alle belangrijke modules
-from magic_time_studio.core.config import *
-from magic_time_studio.core.logging import *
-from magic_time_studio.core.utils import * 
+# Veilige imports met fallbacks
+try:
+    from core.config import *
+except ImportError as e:
+    print(f"⚠️ Core config import gefaald: {e}")
+
+try:
+    from core.logging import *
+except ImportError as e:
+    print(f"⚠️ Core logging import gefaald: {e}")
+
+try:
+    from core.utils import *
+except ImportError as e:
+    print(f"⚠️ Core utils import gefaald: {e}") 

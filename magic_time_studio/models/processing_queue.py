@@ -8,7 +8,21 @@ import threading
 from typing import Dict, Any, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from ..core.logging import logger
-from ..core.config import config_manager
+# Lazy import van config_manager om circulaire import te voorkomen
+def _get_config_manager():
+    """Lazy config manager import om circulaire import te voorkomen"""
+    try:
+        from ..core.config import config_manager
+        return config_manager
+    except ImportError:
+        # Fallback voor directe import
+        import sys
+        sys.path.append('..')
+        try:
+            from core.config import config_manager
+            return config_manager
+        except ImportError:
+            return None
 
 class ProcessingQueue:
     """Beheert de wachtrij voor video verwerking"""
@@ -64,7 +78,8 @@ class APITranslateThrottle:
         self.last_request_time = 0
         self.request_count = 0
         # Haal limiet uit config
-        self.max_requests_per_minute = int(config_manager.get_env("LIBRETRANSLATE_RATE_LIMIT", "60"))
+        config_mgr = _get_config_manager()
+        self.max_requests_per_minute = int(config_mgr.get_env("LIBRETRANSLATE_RATE_LIMIT", "60") if config_mgr else 60)
         # Bereken minimale delay op basis van limiet
         if self.max_requests_per_minute > 0:
             self.min_delay_between_requests = 60.0 / self.max_requests_per_minute
@@ -103,4 +118,13 @@ class APITranslateThrottle:
 
 # Globale instanties
 processing_queue = ProcessingQueue()
-api_throttle = APITranslateThrottle() 
+
+# Lazy instantie van API throttle om circulaire import te voorkomen
+_api_throttle = None
+
+def get_api_throttle():
+    """Lazy instantie van API throttle om circulaire import te voorkomen"""
+    global _api_throttle
+    if _api_throttle is None:
+        _api_throttle = APITranslateThrottle()
+    return _api_throttle 

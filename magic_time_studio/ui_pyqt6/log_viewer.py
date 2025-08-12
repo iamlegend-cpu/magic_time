@@ -12,8 +12,16 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QThread, pyqtSlot
 from PyQt6.QtGui import QFont, QPalette, QColor, QTextCursor, QTextCharFormat
 
-from magic_time_studio.core.logging import logger
-from magic_time_studio.ui_pyqt6.themes import ThemeManager
+# Import core modules
+try:
+    from core.logging import logger
+except ImportError:
+    logger = None
+
+try:
+    from .themes import ThemeManager
+except ImportError:
+    ThemeManager = None
 
 class LogViewer(QWidget):
     """PyQt6 Log viewer venster voor live log weergave"""
@@ -44,7 +52,10 @@ class LogViewer(QWidget):
         self.setMinimumSize(800, 600)
         
         # Pas thema toe
-        self.theme_manager.apply_theme(self, self.theme_manager.get_current_theme())
+        try:
+            self.theme_manager.apply_theme(QApplication.instance(), self.theme_manager.get_current_theme())
+        except Exception as e:
+            print(f"⚠️ Fout bij toepassen thema: {e}")
     
     def create_interface(self):
         """Maak de interface"""
@@ -157,7 +168,7 @@ class LogViewer(QWidget):
         try:
             # Haal echte log berichten op van de applicatie
             sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-            from magic_time_studio.core.logging import logger
+            from core.logging import logger
             
             # Probeer nieuwe log berichten op te halen
             if hasattr(logger, 'log_queue') and not logger.log_queue.empty():

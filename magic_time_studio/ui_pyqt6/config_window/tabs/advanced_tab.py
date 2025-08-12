@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QGroupBox, QSpinBox, QCheckBox
 )
 
-from magic_time_studio.core.config import config_manager
+from core.config import config_manager
 
 class AdvancedTab(QWidget):
     """Geavanceerde instellingen tab"""

@@ -3,7 +3,6 @@ Features module voor Magic Time Studio UI
 """
 
 from .modern_styling import ModernStyling
-from .drag_drop import DragDropHandler
 from .file_preview import FilePreviewWidget
 from .batch_queue import BatchQueueManager
 from .progress_charts import RealTimeChart, PerformanceChart
@@ -13,7 +12,6 @@ from .plugin_manager import PluginManager
 
 __all__ = [
     'ModernStyling',
-    'DragDropHandler', 
     'FilePreviewWidget',
     'BatchQueueManager',
     'RealTimeChart',

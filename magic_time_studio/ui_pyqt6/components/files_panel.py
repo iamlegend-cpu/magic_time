@@ -7,16 +7,14 @@ import os
 from typing import List
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton, QListWidget, 
-    QGroupBox, QTabWidget, QMessageBox, QFileDialog, QListWidgetItem, QLabel
+    QGroupBox, QTabWidget, QMessageBox, QFileDialog, QListWidgetItem, QLabel,
+    QFormLayout, QSizePolicy
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 
-from ..features.drag_drop import DragDropZone
-
 class FilesPanel(QWidget):
-    """Bestanden paneel met preview"""
+    """Bestanden paneel met info tab voor status en model informatie"""
     
-    files_dropped = pyqtSignal(list)
     file_selected = pyqtSignal(str)
     
     def __init__(self, parent=None):
@@ -39,10 +37,7 @@ class FilesPanel(QWidget):
         files_tab = QWidget()
         files_tab_layout = QVBoxLayout(files_tab)
         
-        # Drag & drop zone
-        self.drag_drop_zone = DragDropZone("📁 Sleep bestanden hierheen")
-        self.drag_drop_zone.files_dropped.connect(self.on_files_dropped)
-        files_tab_layout.addWidget(self.drag_drop_zone)
+        # Grote knop bovenaan is verwijderd - gebruik knoppen onderaan
         
         # Bestanden lijst
         self.file_list_widget = QListWidget()
@@ -85,67 +80,76 @@ class FilesPanel(QWidget):
         
         files_tab_layout.addLayout(buttons_layout)
         
-        # Tab 2: Preview
-        preview_tab = QWidget()
-        preview_layout = QVBoxLayout(preview_tab)
+        # Tab 2: Info (Status & Model)
+        info_tab = QWidget()
+        info_layout = QVBoxLayout(info_tab)
         
-        # Preview label
-        self.preview_label = QLabel("Selecteer een bestand om preview te zien")
-        self.preview_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.preview_label.setStyleSheet("""
-            QLabel {
-                color: #888888;
-                font-size: 14px;
-                padding: 20px;
-            }
-        """)
-        preview_layout.addWidget(self.preview_label)
+        # Status informatie
+        status_group = QGroupBox("📊 Status")
+        status_layout = QFormLayout(status_group)
+        
+        self.processing_status_label = QLabel("Inactief")
+        self.processing_status_label.setStyleSheet("color: #28a745; font-weight: bold;")
+        status_layout.addRow("Verwerking:", self.processing_status_label)
+        
+        self.files_count_label = QLabel("0 bestanden")
+        status_layout.addRow("Bestanden:", self.files_count_label)
+        
+        self.current_file_label = QLabel("Geen bestand geselecteerd")
+        self.current_file_label.setStyleSheet("color: #888888;")
+        status_layout.addRow("Huidig:", self.current_file_label)
+        
+        status_group.setLayout(status_layout)
+        info_layout.addWidget(status_group)
+        
+        # Model informatie
+        model_group = QGroupBox("🎤 Model Info")
+        model_layout = QFormLayout(model_group)
+        
+        self.whisper_type_label = QLabel("Niet geladen")
+        self.whisper_type_label.setStyleSheet("color: #888888;")
+        model_layout.addRow("Whisper Type:", self.whisper_type_label)
+        
+        self.model_name_label = QLabel("Niet geladen")
+        self.model_name_label.setStyleSheet("color: #888888;")
+        model_layout.addRow("Model:", self.model_name_label)
+        
+        self.language_label = QLabel("Auto detectie")
+        model_layout.addRow("Taal:", self.language_label)
+        
+        self.translator_label = QLabel("Geen vertaling")
+        model_layout.addRow("Vertaler:", self.translator_label)
+        
+        model_group.setLayout(model_layout)
+        info_layout.addWidget(model_group)
+        
+        # Systeem informatie
+        system_group = QGroupBox("💻 Systeem")
+        system_layout = QFormLayout(system_group)
+        
+        self.gpu_status_label = QLabel("Niet gedetecteerd")
+        self.gpu_status_label.setStyleSheet("color: #888888;")
+        system_layout.addRow("GPU:", self.gpu_status_label)
+        
+        self.vad_status_label = QLabel("Uitgeschakeld")
+        self.vad_status_label.setStyleSheet("color: #888888;")
+        system_layout.addRow("VAD:", self.vad_status_label)
+        
+        system_group.setLayout(system_layout)
+        info_layout.addWidget(system_group)
         
         # Voeg tabs toe aan tab widget
         self.files_tab_widget.addTab(files_tab, "📁 Bestanden")
-        self.files_tab_widget.addTab(preview_tab, "👁️ Preview")
+        self.files_tab_widget.addTab(info_tab, "ℹ️ Info")
         
         files_layout.addWidget(self.files_tab_widget)
         layout.addWidget(files_group)
         
         # Update button states
         self.update_button_states()
-    
-    def on_files_dropped(self, files: List[str]):
-        """Bestanden gedropt - automatisch laden en voorbereiden"""
-        # Voorkom drag & drop tijdens verwerking
-        if self.processing_active:
-            print("⚠️ Kan geen bestanden toevoegen via drag & drop tijdens verwerking")
-            return
         
-        try:
-            video_extensions = ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm']
-            added_count = 0
-            
-            # Voeg bestanden toe en bereid verwerking voor
-            for file_path in files:
-                if os.path.exists(file_path):
-                    file_ext = os.path.splitext(file_path)[1].lower()
-                    if file_ext in video_extensions:
-                        if file_path not in self.file_list:
-                            self.file_list.append(file_path)
-                            added_count += 1
-                            
-                            # Voeg toe aan lijst widget
-                            item = QListWidgetItem(os.path.basename(file_path))
-                            item.setData(Qt.ItemDataRole.UserRole, file_path)
-                            self.file_list_widget.addItem(item)
-            
-            if added_count > 0:
-                # Update remove button state na toevoegen bestanden
-                self.update_button_states()
-                # Emit signal voor automatische verwerking voorbereiding
-                self.files_dropped.emit(self.file_list)
-                print(f"✅ {added_count} bestand(en) toegevoegd en klaar voor verwerking")
-        except Exception as e:
-            print(f"❌ Fout bij verwerken gedropte bestanden: {e}")
-            # Emit een lege lijst om de applicatie niet te laten crashen
-            self.files_dropped.emit([])
+        # Initialiseer info labels
+        self.refresh_all_info()
     
     def on_selection_changed(self):
         """Handle bestand selectie wijziging"""
@@ -157,18 +161,27 @@ class FilesPanel(QWidget):
             # Emit signal voor hoofdapplicatie
             self.file_selected.emit(selected_file)
             
-            # Update preview (toekomstig)
-            self.update_preview(selected_file)
+            # Update info
+            self.update_info(selected_file)
         else:
             print("📁 Geen bestand geselecteerd")
+            # Update info voor geen selectie
+            self.update_info(None)
         
         # Update button states
         self.update_button_states()
     
-    def update_preview(self, file_path: str):
-        """Update preview van geselecteerd bestand"""
-        # Toekomstig: implementeer video preview
-        self.preview_label.setText(f"Preview van: {os.path.basename(file_path)}")
+    def update_info(self, file_path: str):
+        """Update info van geselecteerd bestand"""
+        if file_path:
+            self.current_file_label.setText(os.path.basename(file_path))
+            self.current_file_label.setStyleSheet("color: #007bff; font-weight: bold;")
+        else:
+            self.current_file_label.setText("Geen bestand geselecteerd")
+            self.current_file_label.setStyleSheet("color: #888888;")
+        
+        # Update bestanden teller
+        self.update_files_count()
     
     def add_file(self):
         """Voeg bestand toe via file dialog"""
@@ -190,6 +203,7 @@ class FilesPanel(QWidget):
         
         if added_count > 0:
             self.update_button_states()
+            self.update_files_count()
             print(f"✅ {added_count} bestand(en) toegevoegd")
         else:
             print("⚠️ Geen video bestanden toegevoegd")
@@ -212,6 +226,7 @@ class FilesPanel(QWidget):
             
             if added_count > 0:
                 self.update_button_states()
+                self.update_files_count()
                 print(f"✅ {added_count} bestand(en) uit map toegevoegd")
             else:
                 print("⚠️ Geen video bestanden gevonden in map")
@@ -219,21 +234,27 @@ class FilesPanel(QWidget):
     def remove_selected(self):
         """Verwijder geselecteerd bestand"""
         current_row = self.file_list_widget.currentRow()
-        if current_row >= 0:
-            # Voorkom verwijdering van het eerste bestand (index 0)
-            if current_row == 0:
-                print("⚠️ Kan het eerste bestand niet verwijderen")
-                QMessageBox.warning(self, "Waarschuwing", "Het eerste bestand kan niet worden verwijderd!")
-                return
+        if current_row >= 0 and current_row < len(self.file_list):
+            # Controleer of verwerking actief is
+            if hasattr(self, 'processing_active') and self.processing_active:
+                # Tijdens verwerking: alleen bestanden na het eerste kunnen verwijderd worden
+                if current_row == 0:
+                    print("⚠️ Kan het eerste bestand niet verwijderen tijdens verwerking")
+                    QMessageBox.warning(self, "Waarschuwing", "Het eerste bestand kan niet worden verwijderd tijdens verwerking!")
+                    return
+            else:
+                # Normale modus: alle bestanden kunnen verwijderd worden
+                pass
             
+            # Verwijder het bestand
             removed_file = self.file_list.pop(current_row)
             self.file_list_widget.takeItem(current_row)
             
-            # Update button states op basis van verwerking status
-            if hasattr(self, 'processing_active') and self.processing_active:
-                self.update_button_states_during_processing()
-            else:
-                self.update_button_states()
+            # Update button states
+            self.update_button_states()
+            
+            # Update bestanden teller
+            self.update_files_count()
             
             print(f"🗑️ Bestand verwijderd: {os.path.basename(removed_file)}")
         else:
@@ -241,6 +262,11 @@ class FilesPanel(QWidget):
     
     def clear_list(self):
         """Wis de hele lijst"""
+        # Controleer of verwerking actief is
+        if hasattr(self, 'processing_active') and self.processing_active:
+            QMessageBox.warning(self, "Waarschuwing", "Kan lijst niet wissen tijdens verwerking!")
+            return
+        
         # Vraag bevestiging voordat lijst wordt gewist
         from PyQt6.QtWidgets import QMessageBox
         reply = QMessageBox.question(
@@ -253,11 +279,11 @@ class FilesPanel(QWidget):
             self.file_list.clear()
             self.file_list_widget.clear()
             
-            # Update button states op basis van verwerking status
-            if hasattr(self, 'processing_active') and self.processing_active:
-                self.update_button_states_during_processing()
-            else:
-                self.update_button_states()
+            # Update button states
+            self.update_button_states()
+            
+            # Update bestanden teller
+            self.update_files_count()
             
             print("🗑️ Lijst gewist")
     
@@ -361,4 +387,60 @@ class FilesPanel(QWidget):
     
     def get_file_list(self) -> List[str]:
         """Krijg bestandenlijst"""
-        return self.file_list.copy() 
+        return self.file_list.copy()
+    
+    def update_processing_status(self, is_active: bool):
+        """Update verwerking status"""
+        if is_active:
+            self.processing_status_label.setText("Actief")
+            self.processing_status_label.setStyleSheet("color: #dc3545; font-weight: bold;")
+        else:
+            self.processing_status_label.setText("Inactief")
+            self.processing_status_label.setStyleSheet("color: #28a745; font-weight: bold;")
+    
+    def update_files_count(self):
+        """Update bestanden teller"""
+        count = len(self.file_list)
+        self.files_count_label.setText(f"{count} bestand{'en' if count != 1 else ''}")
+    
+    def update_whisper_info(self, whisper_type: str, model: str):
+        """Update whisper type en model informatie"""
+        if whisper_type:
+            self.whisper_type_label.setText(whisper_type)
+            self.whisper_type_label.setStyleSheet("color: #007bff; font-weight: bold;")
+        if model:
+            self.model_name_label.setText(model)
+            self.model_name_label.setStyleSheet("color: #007bff; font-weight: bold;")
+    
+    def update_language_info(self, language: str):
+        """Update taal informatie"""
+        if language:
+            self.language_label.setText(language)
+    
+    def update_translator_info(self, translator: str):
+        """Update vertaler informatie"""
+        if translator:
+            self.translator_label.setText(translator)
+    
+    def update_gpu_status(self, has_gpu: bool):
+        """Update GPU status"""
+        if has_gpu:
+            self.gpu_status_label.setText("Beschikbaar")
+            self.gpu_status_label.setStyleSheet("color: #28a745; font-weight: bold;")
+        else:
+            self.gpu_status_label.setText("Niet gedetecteerd")
+            self.gpu_status_label.setStyleSheet("color: #888888;")
+    
+    def update_vad_status(self, enabled: bool):
+        """Update VAD status"""
+        if enabled:
+            self.vad_status_label.setText("Ingeschakeld")
+            self.vad_status_label.setStyleSheet("color: #28a745; font-weight: bold;")
+        else:
+            self.vad_status_label.setText("Uitgeschakeld")
+            self.vad_status_label.setStyleSheet("color: #888888;")
+    
+    def refresh_all_info(self):
+        """Ververs alle info labels"""
+        self.update_files_count()
+        # Andere info wordt bijgewerkt door externe componenten 

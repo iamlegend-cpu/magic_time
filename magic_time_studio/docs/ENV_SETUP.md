@@ -1,363 +1,446 @@
 # 🌐 Environment Variables Setup - Magic Time Studio v2.0.0
 
-## 📋 Overzicht
+# 📋 Overzicht
 
 Magic Time Studio v2.0.0 ondersteunt nu environment variables via `.env` bestanden voor LibreTranslate configuratie. Dit maakt het eenvoudiger om verschillende servers en instellingen te gebruiken zonder de code aan te passen.
 
-## 🚀 Snelle Setup
+# 🚀 Snelle Setup
 
-### Stap 1: Template kopiëren
+# Stap 1: Template kopiëren
 
 ```bash
-# Kopieer de template naar een .env bestand
+
+#  Kopieer de template naar een .env bestand
+
 cp config_template.env .env
+
+
 ```
 
-### Stap 2: Aanpassen
+# Stap 2: Aanpassen
 
+```
 Bewerk het `.env` bestand en pas de waarden aan:
 
 ```env
-# LibreTranslate Server Configuratie
+
+#  LibreTranslate Server Configuratie
+
 LIBRETRANSLATE_SERVER=http://localhost:5000
 
-# API Key voor LibreTranslate (indien vereist)
-# LIBRETRANSLATE_API_KEY=your_api_key_here
+#  API Key voor LibreTranslate (indien vereist)
 
-# Timeout instellingen
+#  LIBRETRANSLATE_API_KEY=your_api_key_here
+
+#  Timeout instellingen
+
 LIBRETRANSLATE_TIMEOUT=30
 
-# Rate limiting instellingen
+#  Rate limiting instellingen
+
 LIBRETRANSLATE_RATE_LIMIT=60
+
+
 ```
 
-## 🔧 Beschikbare Variables
+# 🔧 Beschikbare Variables
 
-### 🌐 LibreTranslate Configuratie
+# 🌐 LibreTranslate Configuratie
 
-#### LIBRETRANSLATE_SERVER
+# LIBRETRANSLATE_SERVER
 
-**Type:** URL  
-**Standaard:** `http://localhost:5000`  
+**Type:** URL
+
+```
+**Standaard:** `http://localhost:5000`
 **Beschrijving:** De URL van je LibreTranslate server
 
-#### LIBRETRANSLATE_API_KEY
+#  LIBRETRANSLATE_API_KEY
 
-**Type:** String  
-**Standaard:** (leeg)  
+**Type:** String
+**Standaard:** (leeg)
 **Beschrijving:** API key voor LibreTranslate (indien vereist)
 
-#### LIBRETRANSLATE_TIMEOUT
+#  LIBRETRANSLATE_TIMEOUT
 
-**Type:** Integer (seconden)  
-**Standaard:** `30`  
+**Type:** Integer (seconden)
+**Standaard:** `30`
 **Beschrijving:** Timeout voor API requests
 
-#### LIBRETRANSLATE_RATE_LIMIT
+#  LIBRETRANSLATE_RATE_LIMIT
 
-**Type:** Integer (requests per minuut)  
-**Standaard:** `60`  
+**Type:** Integer (requests per minuut)
+**Standaard:** `60`
 **Beschrijving:** Rate limiting voor API requests
 
-### 🎤 Whisper Configuratie
+#  🎤 Whisper Configuratie
 
-#### DEFAULT_WHISPER_MODEL
+#  DEFAULT_WHISPER_MODEL
 
-**Type:** String  
-**Standaard:** `large`  
-**Opties:** `tiny`, `base`, `small`, `medium`, `large`  
+**Type:** String
+**Standaard:** `large`
+**Opties:** `tiny`, `base`, `small`, `medium`, `large`
 **Beschrijving:** Standaard Whisper model voor transcriptie
 
-#### WHISPER_DEVICE
+#  WHISPER_DEVICE
 
-**Type:** String  
-**Standaard:** `cpu`  
-**Opties:** `cpu`, `cuda`, `mps`  
+**Type:** String
+**Standaard:** `cpu`
+**Opties:** `cpu`, `cuda`, `mps`
 **Beschrijving:** Device voor Whisper verwerking
 
-#### WHISPER_CACHE_DIR
+#  WHISPER_CACHE_DIR
 
-**Type:** Path  
-**Standaard:** (automatisch)  
+**Type:** Path
+**Standaard:** (automatisch)
 **Beschrijving:** Cache directory voor Whisper modellen
 
-### 🎨 Applicatie Configuratie
+#  🎨 Applicatie Configuratie
 
-#### DEFAULT_THEME
+#  DEFAULT_THEME
 
-**Type:** String  
-**Standaard:** `dark`  
-**Opties:** `light`, `dark`, `blue`, `green`  
+**Type:** String
+**Standaard:** `dark`
+**Opties:** `light`, `dark`, `blue`, `green`
 **Beschrijving:** Standaard applicatie thema
 
-#### DEFAULT_FONT_SIZE
+#  DEFAULT_FONT_SIZE
 
-**Type:** Integer  
-**Standaard:** `9`  
+**Type:** Integer
+**Standaard:** `9`
 **Beschrijving:** Standaard font grootte
 
-#### DEFAULT_WORKER_COUNT
+#  DEFAULT_WORKER_COUNT
 
-**Type:** Integer  
-**Standaard:** `4`  
+**Type:** Integer
+**Standaard:** `4`
 **Beschrijving:** Standaard aantal worker threads
 
-#### DEFAULT_SUBTITLE_TYPE
+#  DEFAULT_SUBTITLE_TYPE
+#  HARDCODED ONDERTITELING WORDT NIET MEER ONDERSTEUND - ALLEEN SOFCODED BESCHIKBAAR
 
-**Type:** String  
-**Standaard:** `softcoded`  
-**Opties:** `softcoded`, `hardcoded`  
-**Beschrijving:** Standaard subtitle type
+**Type:** String
+**Standaard:** `softcoded`
+**Opties:** `softcoded` (hardcoded wordt niet meer ondersteund)
+**Beschrijving:** Standaard subtitle type. Hardcoded ondertiteling wordt niet meer ondersteund - er worden alleen SRT bestanden gemaakt zonder video verwerking of MP4 generatie. Het originele video bestand blijft ongewijzigd.
 
-#### DEFAULT_HARDCODED_LANGUAGE
+#  DEFAULT_HARDCODED_LANGUAGE
 
-**Type:** String  
-**Standaard:** `dutch_only`  
-**Beschrijving:** Standaard hardcoded taal
+**Type:** String
+**Standaard:** `dutch_only`
+**Beschrijving:** Standaard hardcoded taal (NIET MEER GEBRUIKT - hardcoded ondertiteling wordt niet meer ondersteund)
 
-### 📝 Logging Configuratie
+#  📝 Logging Configuratie
 
-#### LOG_LEVEL
+#  LOG_LEVEL
 
-**Type:** String  
-**Standaard:** `DEBUG`  
-**Opties:** `DEBUG`, `INFO`, `WARNING`, `ERROR`  
+**Type:** String
+**Standaard:** `DEBUG`
+**Opties:** `DEBUG`, `INFO`, `WARNING`, `ERROR`
 **Beschrijving:** Logging niveau
 
-#### LOG_TO_FILE
+#  LOG_TO_FILE
 
-**Type:** Boolean  
-**Standaard:** `false`  
+**Type:** Boolean
+**Standaard:** `false`
 **Beschrijving:** Log naar bestand inschakelen
 
-#### LOG_FILE_PATH
+#  LOG_FILE_PATH
 
-**Type:** Path  
-**Standaard:** (automatisch)  
+**Type:** Path
+**Standaard:** (automatisch)
 **Beschrijving:** Pad naar log bestand
 
-### 📁 Output Configuratie
+#  📁 Output Configuratie
 
-#### DEFAULT_OUTPUT_DIR
+#  DEFAULT_OUTPUT_DIR
 
-**Type:** Path  
-**Standaard:** (automatisch)  
+**Type:** Path
+**Standaard:** (automatisch)
 **Beschrijving:** Standaard output directory
 
-#### AUTO_CREATE_OUTPUT_DIR
+#  AUTO_CREATE_OUTPUT_DIR
 
-**Type:** Boolean  
-**Standaard:** `true`  
+**Type:** Boolean
+**Standaard:** `true`
 **Beschrijving:** Automatisch output directory maken
 
-### ⚡ Performance Configuratie
+#  ⚡ Performance Configuratie
 
-#### CPU_LIMIT_PERCENTAGE
+#  CPU_LIMIT_PERCENTAGE
 
-**Type:** Integer  
-**Standaard:** `80`  
+**Type:** Integer
+**Standaard:** `80`
 **Beschrijving:** CPU limiet percentage
 
-#### MEMORY_LIMIT_MB
+#  MEMORY_LIMIT_MB
 
-**Type:** Integer  
-**Standaard:** `2048`  
+**Type:** Integer
+**Standaard:** `2048`
 **Beschrijving:** Memory limiet in MB
 
-### 🔒 Security Configuratie
+#  🔒 Security Configuratie
 
-#### AUTO_CLEANUP_TEMP
+#  AUTO_CLEANUP_TEMP
 
-**Type:** Boolean  
-**Standaard:** `true`  
+**Type:** Boolean
+**Standaard:** `true`
 **Beschrijving:** Automatisch temp bestanden opruimen
 
-#### ENCRYPT_SENSITIVE_DATA
+#  ENCRYPT_SENSITIVE_DATA
 
-**Type:** Boolean  
-**Standaard:** `false`  
+**Type:** Boolean
+**Standaard:** `false`
 **Beschrijving:** Encrypt gevoelige data
 
-#### ENCRYPTION_KEY
+#  ENCRYPTION_KEY
 
-**Type:** String  
-**Standaard:** (leeg)  
+**Type:** String
+**Standaard:** (leeg)
 **Beschrijving:** Encryption key voor gevoelige data
 
 **Voorbeelden:**
 
 ```env
-# Lokale server
+
+#  Lokale server
+
 LIBRETRANSLATE_SERVER=http://localhost:5000
 
-# Publieke server
+#  Publieke server
+
 LIBRETRANSLATE_SERVER=https://libretranslate.com
 
-# Custom server
+#  Custom server
+
 LIBRETRANSLATE_SERVER=http://jouw-server:5000
+
+
 ```
 
 # LIBRETRANSLATE_API_KEY
 
-**Type:** String  
-**Standaard:** (leeg)  
+**Type:** String
+**Standaard:** (leeg)
 **Beschrijving:** API key voor LibreTranslate (indien vereist)
 
+```
 ```env
 LIBRETRANSLATE_API_KEY=your_secret_api_key_here
+
+
 ```
 
-### LIBRETRANSLATE_TIMEOUT
+# LIBRETRANSLATE_TIMEOUT
 
-**Type:** Integer (seconden)  
-**Standaard:** `30`  
+**Type:** Integer (seconden)
+
+```
+**Standaard:** `30`
 **Beschrijving:** Timeout voor API requests
 
 ```env
 LIBRETRANSLATE_TIMEOUT=60
+
+
 ```
 
-### LIBRETRANSLATE_RATE_LIMIT
+# LIBRETRANSLATE_RATE_LIMIT
 
-**Type:** Integer (requests per minuut)  
-**Standaard:** `60`  
+**Type:** Integer (requests per minuut)
+
+```
+**Standaard:** `60`
 **Beschrijving:** Rate limiting voor API requests
 
 ```env
 LIBRETRANSLATE_RATE_LIMIT=30
+
+
 ```
 
-## 📁 Bestand Locaties
+# 📁 Bestand Locaties
 
+```
 Magic Time Studio zoekt naar `.env` bestanden in deze volgorde:
 
 1. **`magic_time_studio/.env`** - Project directory (aanbevolen)
 2. **`./.env`** - Huidige werkdirectory
 3. **`~/.env`** - Home directory
 
-## 🎯 Gebruik in Code
+#  🎯 Gebruik in Code
 
 De environment variables worden automatisch geladen en zijn beschikbaar via de config manager:
 
 ```python
 from magic_time_studio.core.config import config_manager
 
-# LibreTranslate server URL
+#  LibreTranslate server URL
+
 server_url = config_manager.get_env("LIBRETRANSLATE_SERVER", "http://localhost:5000")
 
-# Timeout instelling
+#  Timeout instelling
+
 timeout = int(config_manager.get_env("LIBRETRANSLATE_TIMEOUT", "30"))
 
-# API key
+#  API key
+
 api_key = config_manager.get_env("LIBRETRANSLATE_API_KEY", "")
+
+
 ```
 
-## 🔒 Beveiliging
+# 🔒 Beveiliging
 
-### Best Practices
+# Best Practices
 
+```
 - ✅ **Gebruik `.env` voor lokale configuratie**
 - ✅ **Voeg `.env` toe aan `.gitignore`**
 - ✅ **Gebruik `config_template.env` als template**
 - ✅ **Deel geen API keys in code**
 
-### Wat NIET te doen
+#  Wat NIET te doen
 
 - ❌ **Commit `.env` bestanden naar Git**
 - ❌ **Hardcode API keys in code**
 - ❌ **Deel `.env` bestanden publiekelijk**
 
-## 🌐 LibreTranslate Server Opties
+#  🌐 LibreTranslate Server Opties
 
-### 1. Publieke Servers
+#  1. Publieke Servers
 
 ```env
-# Officiële LibreTranslate server
+
+#  Officiële LibreTranslate server
+
 LIBRETRANSLATE_SERVER=https://libretranslate.com
 
-# Community servers
+#  Community servers
+
 LIBRETRANSLATE_SERVER=https://translate.argosopentech.com
+
+
 ```
 
-### 2. Lokale Server
+# 2. Lokale Server
 
+```
 ```env
-# Docker
+
+#  Docker
+
 LIBRETRANSLATE_SERVER=http://localhost:5000
 
-# Lokale installatie
+#  Lokale installatie
+
 LIBRETRANSLATE_SERVER=http://127.0.0.1:5000
+
+
 ```
 
-### 3. Custom Server
+# 3. Custom Server
 
+```
 ```env
-# LAN server
+
+#  LAN server
+
 LIBRETRANSLATE_SERVER=http://jouw-server:5000
 
-# VPS server
+#  VPS server
+
 LIBRETRANSLATE_SERVER=https://translate.yourdomain.com
+
+
 ```
 
-## 🔧 Troubleshooting
+# 🔧 Troubleshooting
 
-### .env bestand wordt niet geladen
+# .env bestand wordt niet geladen
 
+```
 ```bash
-# Controleer of het bestand bestaat
+
+#  Controleer of het bestand bestaat
+
 ls -la .env
 
-# Controleer de syntax
+#  Controleer de syntax
+
 cat .env
+
+
 ```
 
-### Server niet bereikbaar
+# Server niet bereikbaar
 
+```
 ```bash
-# Test de server URL
+
+#  Test de server URL
+
 curl http://your-server:5000/languages
 
-# Controleer firewall instellingen
+#  Controleer firewall instellingen
+
+
 ```
 
-### Timeout errors
+# Timeout errors
 
+```
 ```env
-# Verhoog timeout
+
+#  Verhoog timeout
+
 LIBRETRANSLATE_TIMEOUT=60
+
+
 ```
 
-## 📝 Voorbeelden
+# 📝 Voorbeelden
 
-### Basis Configuratie
+# Basis Configuratie
 
+```
 ```env
 LIBRETRANSLATE_SERVER=http://localhost:5000
 LIBRETRANSLATE_TIMEOUT=30
+
+
 ```
 
-### Met API Key
+# Met API Key
 
+```
 ```env
 LIBRETRANSLATE_SERVER=https://libretranslate.com
 LIBRETRANSLATE_API_KEY=your_api_key_here
 LIBRETRANSLATE_TIMEOUT=60
 LIBRETRANSLATE_RATE_LIMIT=30
+
+
 ```
 
-### Productie Configuratie
+# Productie Configuratie
 
+```
 ```env
 LIBRETRANSLATE_SERVER=https://translate.yourdomain.com
 LIBRETRANSLATE_API_KEY=production_api_key
 LIBRETRANSLATE_TIMEOUT=120
 LIBRETRANSLATE_RATE_LIMIT=100
+
+
 ```
 
-## 🤝 Bijdragen
+# 🤝 Bijdragen
 
 Heb je suggesties voor extra environment variables? Open een issue of pull request!
 
 ---
 
 **Magic Time Studio v2.0.0** - Flexibele LibreTranslate configuratie! 🌐✨
+
+```

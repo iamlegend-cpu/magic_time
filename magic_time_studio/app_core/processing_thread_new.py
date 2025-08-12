@@ -1,10 +1,20 @@
 """
 ProcessingThread - Modulaire versie voor Magic Time Studio
+Gebruikt de nieuwe modulaire functies
 """
 
 import os
 from PyQt6.QtCore import QThread, pyqtSignal
-from .processing_modules import AudioProcessor, WhisperProcessor, TranslationProcessor, VideoProcessor
+
+# Import processing modules
+try:
+    from .processing_modules import AudioProcessor, WhisperProcessor, TranslationProcessor, VideoProcessor
+except ImportError:
+    # Fallback als imports falen
+    AudioProcessor = None
+    WhisperProcessor = None
+    TranslationProcessor = None
+    VideoProcessor = None
 
 # Debug mode - zet op False om debug output uit te zetten
 DEBUG_MODE = False
@@ -25,18 +35,37 @@ class ProcessingThread(QThread):
         super().__init__()
         self.files = files
         self.settings = settings
+        print(f"🔍 [DEBUG] ProcessingThread.__init__: Ontvangen instellingen: {self.settings}")
         self.is_running = True
         self.current_file = None
         
-        # Initialiseer processing modules
-        self.audio_processor = AudioProcessor(self)
-        self.whisper_processor = WhisperProcessor(self)
-        self.translation_processor = TranslationProcessor(self)
-        self.video_processor = VideoProcessor(self)
+        # Initialiseer processing modules (gebruiken nu modulaire functies)
+        self.audio_processor = AudioProcessor(self) if AudioProcessor else None
+        self.whisper_processor = WhisperProcessor(self) if WhisperProcessor else None
+        self.translation_processor = TranslationProcessor(self) if TranslationProcessor else None
+        self.video_processor = VideoProcessor(self) if VideoProcessor else None
+        
+        # Debug: toon status van alle modules
+        print(f"🔍 [DEBUG] ProcessingThread: Audio processor: {self.audio_processor}")
+        print(f"🔍 [DEBUG] ProcessingThread: Whisper processor: {self.whisper_processor}")
+        print(f"🔍 [DEBUG] ProcessingThread: Translation processor: {self.translation_processor}")
+        print(f"🔍 [DEBUG] ProcessingThread: Video processor: {self.video_processor}")
+        
+        # Controleer of alle modules beschikbaar zijn
+        if not all([self.audio_processor, self.whisper_processor, self.translation_processor, self.video_processor]):
+            print("⚠️ Niet alle processing modules zijn beschikbaar")
     
     def run(self):
-        """Voer verwerking uit in aparte thread"""
+        """Voer verwerking uit in aparte thread - gebruikt modulaire functies"""
         try:
+            print(f"🔍 [DEBUG] ProcessingThread.run: Start met instellingen: {self.settings}")
+            
+            # Controleer of alle modules beschikbaar zijn
+            if not all([self.audio_processor, self.whisper_processor, self.translation_processor, self.video_processor]):
+                self.error_occurred.emit("Niet alle processing modules zijn beschikbaar")
+                self.processing_finished.emit()
+                return
+            
             # Gebruik de echte bestanden uit de files lijst
             if not self.files:
                 self.status_updated.emit("⚠️ Geen bestanden geselecteerd voor verwerking")
@@ -72,24 +101,76 @@ class ProcessingThread(QThread):
                 self.progress_updated.emit(0.0, f"🎬 Start verwerking: {os.path.basename(file_path)}")
                 
                 try:
-                    # Stap 1: Audio extractie
+                    # Stap 1: Audio extractie (gebruikt modulaire functie)
+                    print(f"🔍 [DEBUG] ProcessingThread: Start stap 1 - Audio extractie")
+                    
+                    # Geef instellingen door aan audio processor
+                    if hasattr(self, 'settings') and self.settings:
+                        print(f"🔍 [DEBUG] ProcessingThread: Geef instellingen door aan audio processor: {self.settings}")
+                        self.audio_processor.set_settings(self.settings)
+                    
                     audio_path = self.audio_processor.extract_audio(file_path)
                     if not audio_path:
+                        print(f"🔍 [DEBUG] ProcessingThread: Audio extractie gefaald")
                         continue
+                    
+                    print(f"🔍 [DEBUG] ProcessingThread: Audio extractie voltooid: {audio_path}")
                     
                     # Check of verwerking gestopt moet worden
                     if not self.is_running:
                         self.status_updated.emit("🛑 Verwerking gestopt door gebruiker")
                         break
                     
-                    # Stap 2: Fast Whisper transcriptie
+                    # Stap 2: Whisper transcriptie (gebruikt modulaire functie)
+                    print(f"🔍 [DEBUG] ProcessingThread: Start stap 2 - Whisper transcriptie")
+                    
+                    # Geef instellingen door aan whisper processor
+                    if hasattr(self, 'settings') and self.settings:
+                        print(f"🔍 [DEBUG] ProcessingThread: Geef instellingen door aan whisper processor: {self.settings}")
+                        self.whisper_processor.set_settings(self.settings)
+                    
+                    # Update status voor whisper transcriptie
+                    self.status_updated.emit(f"🎤 Start Whisper transcriptie: {os.path.basename(file_path)}")
+                    self.progress_updated.emit(50.0, f"🎤 Whisper transcriptie gestart...")
+                    
                     whisper_result = self.whisper_processor.transcribe_audio(audio_path, file_path)
                     if not whisper_result:
+                        print(f"🔍 [DEBUG] ProcessingThread: Whisper transcriptie gefaald")
                         continue
                     
-                    transcript = whisper_result["transcript"]
-                    transcriptions = whisper_result["transcriptions"]
-                    source_language = whisper_result["language"]
+                    print(f"🔍 [DEBUG] ProcessingThread: Whisper transcriptie voltooid")
+                    print(f"🔍 [DEBUG] ProcessingThread: whisper_result type: {type(whisper_result)}")
+                    
+                    # Update progress na transcriptie
+                    self.progress_updated.emit(65.0, f"✅ Whisper transcriptie voltooid: {os.path.basename(file_path)}")
+                    self.status_updated.emit(f"✅ Whisper transcriptie voltooid: {os.path.basename(file_path)}")
+                    
+                    transcript = whisper_result.get("transcript", "")
+                    
+                    # Check of transcriptions of segments beschikbaar zijn
+                    if "transcriptions" in whisper_result:
+                        transcriptions = whisper_result["transcriptions"]
+                    elif "segments" in whisper_result:
+                        # Converteer segments naar transcriptions formaat
+                        transcriptions = []
+                        for segment in whisper_result["segments"]:
+                            transcriptions.append({
+                                "start": segment.get("start", 0.0),
+                                "end": segment.get("end", 0.0),
+                                "text": segment.get("text", "")
+                            })
+                    else:
+                        # Fallback: maak een enkele transcriptie
+                        transcriptions = [{
+                            "start": 0.0,
+                            "end": 5.0,
+                            "text": transcript
+                        }]
+                    
+                    source_language = whisper_result.get("language", "auto")
+                    
+                    print(f"🔍 [DEBUG] ProcessingThread: transcript type: {type(transcript)}, lengte: {len(transcript) if transcript else 0}")
+                    print(f"🔍 [DEBUG] ProcessingThread: transcriptions type: {type(transcriptions)}, count: {len(transcriptions) if transcriptions else 0}")
                     
                     # Check of verwerking gestopt moet worden
                     if not self.is_running:
@@ -99,20 +180,75 @@ class ProcessingThread(QThread):
                     # Update progress na transcriptie
                     self.progress_updated.emit(file_progress + 65, f"🌐 Vertaling: {os.path.basename(file_path)}")
                     
-                    # Stap 3: Vertaling (als ingesteld)
-                    transcript, translated_transcriptions = self.translation_processor.translate_content(
-                        transcript, transcriptions, source_language
-                    )
+                    # Stap 3: Vertaling (als ingesteld) - gebruikt modulaire functie
+                    print(f"🔍 [DEBUG] ProcessingThread: Start stap 3 - Vertaling")
+                    print(f"🔍 [DEBUG] ProcessingThread: Vertaling instellingen: {self.settings}")
+                    print(f"🔍 [DEBUG] ProcessingThread: Translation processor: {self.translation_processor}")
+                    print(f"🔍 [DEBUG] ProcessingThread: Translation processor type: {type(self.translation_processor)}")
+                    print(f"🔍 [DEBUG] ProcessingThread: Translation processor methods: {dir(self.translation_processor) if self.translation_processor else 'None'}")
+                    
+                    # Controleer of vertaling is ingeschakeld
+                    translator_enabled = self.settings.get("translator", "none") == "libretranslate" if self.settings else False
+                    print(f"🔍 [DEBUG] ProcessingThread: Vertaling ingeschakeld: {translator_enabled}")
+                    
+                    if translator_enabled:
+                        print(f"🔍 [DEBUG] ProcessingThread: Vertaling stap wordt uitgevoerd!")
+                        try:
+                            # Geef instellingen door aan translation processor
+                            if hasattr(self, 'settings') and self.settings:
+                                print(f"🔍 [DEBUG] ProcessingThread: Geef instellingen door aan translation processor: {self.settings}")
+                                self.translation_processor.set_settings(self.settings)
+                            
+                            transcript, translated_transcriptions = self.translation_processor.translate_content(
+                                transcript, transcriptions, source_language
+                            )
+                            print(f"🔍 [DEBUG] ProcessingThread: Vertaling voltooid")
+                            print(f"🔍 [DEBUG] ProcessingThread: translated_transcriptions type: {type(translated_transcriptions)}, count: {len(translated_transcriptions) if translated_transcriptions else 0}")
+                        except Exception as e:
+                            print(f"🔍 [DEBUG] ProcessingThread: Vertaling gefaald: {e}")
+                            import traceback
+                            print(f"🔍 [DEBUG] ProcessingThread: Vertaling traceback: {traceback.format_exc()}")
+                            # Gebruik originele transcriptie als vertaling faalt
+                            translated_transcriptions = transcriptions
+                    else:
+                        print(f"🔍 [DEBUG] ProcessingThread: Vertaling uitgeschakeld, gebruik originele transcriptie")
+                        translated_transcriptions = transcriptions
                     
                     # Check of verwerking gestopt moet worden
                     if not self.is_running:
                         self.status_updated.emit("🛑 Verwerking gestopt door gebruiker")
                         break
                     
-                    # Stap 4: Video verwerking
-                    video_result = self.video_processor.process_video(
-                        file_path, transcript, transcriptions, translated_transcriptions
-                    )
+                    # Stap 4: Video verwerking (gebruikt modulaire functie)
+                    print(f"🔍 [DEBUG] ProcessingThread: Start stap 4 - Video verwerking")
+                    print(f"🔍 [DEBUG] ProcessingThread: Memory check - transcriptions count: {len(transcriptions) if transcriptions else 0}")
+                    
+                    # Memory check
+                    try:
+                        import psutil
+                        process = psutil.Process()
+                        memory_info = process.memory_info()
+                        print(f"🔍 [DEBUG] ProcessingThread: Memory gebruik: {memory_info.rss / 1024 / 1024:.1f} MB")
+                    except Exception as e:
+                        print(f"🔍 [DEBUG] ProcessingThread: Memory check gefaald: {e}")
+                    
+                    try:
+                        # Geef instellingen door aan video processor
+                        if hasattr(self, 'settings') and self.settings:
+                            # Stel instellingen in voor video processor
+                            print(f"🔍 [DEBUG] ProcessingThread: Geef instellingen door aan video processor: {self.settings}")
+                            self.video_processor.set_settings(self.settings)
+                        
+                        video_result = self.video_processor.process_video(
+                            file_path, transcript, transcriptions, translated_transcriptions
+                        )
+                        print(f"🔍 [DEBUG] ProcessingThread: Video verwerking voltooid")
+                    except Exception as e:
+                        print(f"🔍 [DEBUG] ProcessingThread: CRASH in video_processor.process_video: {e}")
+                        print(f"🔍 [DEBUG] ProcessingThread: Exception type: {type(e)}")
+                        import traceback
+                        print(f"🔍 [DEBUG] ProcessingThread: Traceback: {traceback.format_exc()}")
+                        raise  # Re-raise de exception
                     
                     # Bepaal output pad
                     if "error" in video_result:
