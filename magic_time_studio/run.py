@@ -11,6 +11,7 @@ Gebruik:
 import sys
 import os
 from pathlib import Path
+import traceback
 
 def setup_environment():
     """Setup de Python omgeving voor Magic Time Studio"""
@@ -97,12 +98,12 @@ def main():
         print("💡 Zorg ervoor dat alle dependencies zijn geïnstalleerd in je virtual environment")
         print("💡 Activeer je virtual environment: pyqt_venv\\Scripts\\activate")
         return 1
-        
     except Exception as e:
         print(f"\n❌ Onverwachte fout: {e}")
-        import traceback
         traceback.print_exc()
         return 1
+    
+    return 0
 
 if __name__ == "__main__":
     try:

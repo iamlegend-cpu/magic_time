@@ -21,6 +21,9 @@ try:
     LANCZOS_RESAMPLE = getattr(Image, "LANCZOS", getattr(Image, "BICUBIC", 3))
 except ImportError:
     LANCZOS_RESAMPLE = 3
+except AttributeError:
+    # Fallback als PIL wel beschikbaar is maar logging problemen heeft
+    LANCZOS_RESAMPLE = 3
 
 class SafeWidget:
     """Veilige widget operaties voor PyQt6"""
@@ -248,6 +251,9 @@ def get_bundle_dir() -> str:
     if getattr(sys, 'frozen', False):
         # PyInstaller bundle
         return os.path.dirname(sys.executable)
+    elif hasattr(sys, '_MEIPASS'):
+        # PyInstaller runtime
+        return sys._MEIPASS
     else:
         # Normale Python omgeving
         return os.path.dirname(os.path.abspath(__file__))
@@ -265,4 +271,39 @@ def find_executable_in_bundle(executable_name: str) -> Optional[str]:
         if executable_name in files:
             return os.path.join(root, executable_name)
     
-    return None 
+    return None
+
+def load_env_file(file_path: str) -> None:
+    """Laad environment variabelen uit bestand"""
+    try:
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#'):
+                        if '=' in line:
+                            key, value = line.split('=', 1)
+                            key = key.strip()
+                            value = value.strip().strip('"').strip("'")
+                            os.environ[key] = value
+            print(f"✅ Environment variabelen geladen van: {file_path}")
+    except Exception as e:
+        print(f"⚠️ Fout bij laden env bestand: {e}")
+
+def get_project_root() -> str:
+    """Krijg project root directory"""
+    if hasattr(sys, '_MEIPASS'):
+        # PyInstaller runtime
+        return sys._MEIPASS
+    else:
+        try:
+            # Zoek naar magic_time_studio directory
+            from pathlib import Path
+            current = Path(__file__).parent
+            while current.parent != current:
+                if current.name == 'magic_time_studio':
+                    return str(current)
+                current = current.parent
+            return str(Path.cwd())
+        except Exception:
+            return str(os.getcwd()) 

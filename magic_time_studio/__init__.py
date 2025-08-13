@@ -8,16 +8,16 @@ __author__ = "Magic Time Studio Team"
 
 # Veilige imports met fallbacks
 try:
-    from core.config import *
+    from magic_time_studio.core.config import *
 except ImportError as e:
     print(f"⚠️ Core config import gefaald: {e}")
 
 try:
-    from core.logging import *
+    from magic_time_studio.core.logging import *
 except ImportError as e:
     print(f"⚠️ Core logging import gefaald: {e}")
 
 try:
-    from core.utils import *
+    from magic_time_studio.core.utils import *
 except ImportError as e:
     print(f"⚠️ Core utils import gefaald: {e}") 

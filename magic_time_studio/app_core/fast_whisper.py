@@ -11,8 +11,8 @@ class FastWhisper:
     
     def __init__(self):
         self.model = None
-        self.device = "cuda"  # Default naar CUDA
-        self.compute_type = "float16"
+        self.device = "cpu"  # Default naar CPU
+        self.compute_type = "float32"  # Default naar float32 voor CPU
         self.is_loaded = False
         self.gpu_available = False
         self._check_gpu_availability()
@@ -23,37 +23,30 @@ class FastWhisper:
             import torch
             self.gpu_available = torch.cuda.is_available()
             if self.gpu_available:
-                # GPU informatie wordt niet meer getoond om spam te voorkomen
-                pass
+                print("✅ CUDA beschikbaar - GPU kan worden gebruikt")
             else:
-                if not hasattr(self, '_gpu_checked') or not self._gpu_checked:
-                    print("⚠️ CUDA niet beschikbaar, gebruik CPU")
-                self.device = "cpu"
+                print("⚠️ CUDA niet beschikbaar - gebruik CPU")
             self._gpu_checked = True
         except ImportError:
-            if not hasattr(self, '_gpu_checked') or not self._gpu_checked:
-                print("⚠️ PyTorch niet beschikbaar, kan GPU niet controleren")
-            self._gpu_checked = True
-            self.device = "cpu"
+            print("⚠️ PyTorch niet beschikbaar - gebruik CPU")
+            self.gpu_available = False
         except Exception as e:
-            if not hasattr(self, '_gpu_checked') or not self._gpu_checked:
-                print(f"⚠️ Fout bij GPU controle: {e}")
-            self._gpu_checked = True
-            self.device = "cpu"
+            print(f"⚠️ GPU controle gefaald: {e} - gebruik CPU")
+            self.gpu_available = False
     
     def load_model(self, model_name: str, device: str = None, compute_type: str = None) -> bool:
         """Laad Faster Whisper model"""
         try:
-            # Gebruik opgegeven device of fallback naar beschikbare
+            # Gebruik opgegeven device of detecteer beste optie
             if device is None:
-                device = self.device
-            if compute_type is None:
-                compute_type = self.compute_type
+                device = "cuda" if self.gpu_available else "cpu"
             
-            # Controleer device beschikbaarheid
-            if device == "cuda" and not self.gpu_available:
-                print("⚠️ CUDA niet beschikbaar, schakel over naar CPU")
-                device = "cpu"
+            # Stel compute type in op basis van device
+            if compute_type is None:
+                if device == "cuda":
+                    compute_type = "float16"  # GPU ondersteunt float16
+                else:
+                    compute_type = "float32"  # CPU ondersteunt float32 beter
             
             print(f"📥 Laad Faster Whisper model: {model_name} op {device} ({compute_type})")
             
@@ -70,21 +63,20 @@ class FastWhisper:
             return True
             
         except Exception as e:
-            print(f"❌ Fout bij laden Faster Whisper model: {e}")
-            
-            # Probeer fallback naar CPU als CUDA faalt
-            if device == "cuda" and self.device != "cpu":
+            print(f"❌ Fout bij laden Faster Whisper model op {device}: {e}")
+            # Probeer fallback naar CPU als GPU faalt
+            if device != "cpu":
                 print("🔄 Probeer fallback naar CPU...")
                 try:
-                    self.model = WhisperModel(model_name, device="cpu", compute_type=compute_type)
+                    self.model = WhisperModel(model_name, device="cpu", compute_type="float32")
                     self.device = "cpu"
-                    self.compute_type = compute_type
+                    self.compute_type = "float32"
                     self.is_loaded = True
                     print(f"✅ Faster Whisper model geladen op CPU: {model_name}")
                     return True
                 except Exception as cpu_error:
                     print(f"❌ CPU fallback ook gefaald: {cpu_error}")
-            
+                    return False
             return False
     
     def transcribe(self, audio_path: str, language: str = None, beam_size: int = 5, progress_callback=None) -> Optional[Dict[str, Any]]:

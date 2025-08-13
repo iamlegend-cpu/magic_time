@@ -45,4 +45,71 @@ def open_documentatie():
         webbrowser.open(url)
         return f"Documentatie geopend: {url}"
     except Exception as e:
-        return f"Kon documentatie niet openen: {e}" 
+        return f"Kon documentatie niet openen: {e}"
+
+def check_system_requirements():
+    """Controleer systeem vereisten"""
+    print("🔍 Systeem vereisten controle...")
+    
+    # Python versie
+    import sys
+    python_version = sys.version_info
+    print(f"🐍 Python: {python_version.major}.{python_version.minor}.{python_version.micro}")
+    
+    # Platform
+    print(f"💻 Platform: {sys.platform}")
+    
+    # PyInstaller status
+    if hasattr(sys, '_MEIPASS'):
+        print("📦 PyInstaller: Gedetecteerd (bundled executable)")
+    else:
+        print("📦 PyInstaller: Niet gedetecteerd (normale Python omgeving)")
+    
+    # Controleer optionele packages
+    optional_packages = []
+    
+    try:
+        import torch
+        print("✅ PyTorch: Beschikbaar")
+    except ImportError:
+        print("⚠️ PyTorch: Niet beschikbaar")
+        optional_packages.append("torch")
+    
+    try:
+        import whisper
+        print("✅ Whisper: Beschikbaar")
+    except ImportError:
+        print("⚠️ Whisper: Niet beschikbaar")
+        optional_packages.append("whisper")
+    
+    try:
+        import faster_whisper
+        print("✅ Faster Whisper: Beschikbaar")
+    except ImportError:
+        print("⚠️ Faster Whisper: Niet beschikbaar")
+        optional_packages.append("faster_whisper")
+    
+    if optional_packages:
+        print(f"💡 Ontbrekende optionele packages: {', '.join(optional_packages)}")
+        print("💡 Deze packages zijn nodig voor whisper functionaliteit")
+        print("💡 Het programma kan starten maar whisper features werken niet")
+    
+    return len(optional_packages) == 0
+
+def get_project_info():
+    """Krijg project informatie"""
+    import os
+    if hasattr(sys, '_MEIPASS'):
+        # PyInstaller bundle
+        bundle_dir = sys._MEIPASS
+        print(f"📁 Project root: {bundle_dir}")
+        return bundle_dir
+    else:
+        # Normale Python omgeving
+        current_dir = os.getcwd()
+        print(f"📁 Project root: {current_dir}")
+        return current_dir
+
+if __name__ == "__main__":
+    check_system_requirements()
+    get_project_info() 

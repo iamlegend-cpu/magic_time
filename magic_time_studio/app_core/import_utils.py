@@ -4,7 +4,10 @@ Bevat veilige imports en fallback logica
 """
 
 # Import processing modules
-from magic_time_studio.core.all_functions import *
+try:
+    from magic_time_studio.core import all_functions
+except ImportError:
+    all_functions = None
 
 def safe_import_config_manager():
     """Veilige import van config manager met fallback"""
@@ -57,7 +60,8 @@ def safe_import_theme_manager():
 def safe_import_processing_modules():
     """Veilige import van processing modules met fallbacks"""
     try:
-        from magic_time_studio.core.all_functions import *
+        # Import specifieke modules in plaats van wildcard
+        from magic_time_studio.core import all_functions
         # Alle functies zijn nu beschikbaar via all_functions
         return True, True, True
     except ImportError as e:
@@ -67,7 +71,8 @@ def safe_import_processing_modules():
 def safe_import_whisper_manager():
     """Veilige import van whisper manager met fallback"""
     try:
-        from magic_time_studio.core.whisper_functions import *
+        # Import specifieke modules in plaats van wildcard
+        from magic_time_studio.core import whisper_functions
         # Whisper functies zijn nu beschikbaar via whisper_functions
         return True
     except ImportError as e:

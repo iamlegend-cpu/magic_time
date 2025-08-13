@@ -106,12 +106,14 @@ class WhisperManager:
             if device.lower() in ["cuda", "cpu"]:
                 self.gpu_device = device.lower()
                 
-                # Als CUDA wordt geselecteerd, probeer het te forceren
+                # Als CUDA wordt geselecteerd, controleer of het beschikbaar is
                 if device.lower() == "cuda":
-                    cuda_available = self.force_cuda()
+                    cuda_available = self.check_cuda_availability()
                     if not cuda_available:
+                        print("⚠️ CUDA niet beschikbaar - schakel over naar CPU")
                         self.gpu_device = "cpu"
-                # GPU device status wordt niet meer getoond om spam te voorkomen
+                        # Update compute type voor CPU
+                        self.compute_type = "float32"
                 
                 return True
             else:
@@ -132,11 +134,11 @@ class WhisperManager:
             if compute_type.lower() in valid_types:
                 self.compute_type = compute_type.lower()
                 
-                # Als float16 wordt geselecteerd, probeer CUDA te forceren voor betere prestaties
+                # Als float16 wordt geselecteerd, controleer of CUDA beschikbaar is
                 if compute_type.lower() == "float16":
-                    if self.gpu_device == "cuda":
-                        self.force_cuda()
-                # Compute type status wordt niet meer getoond om spam te voorkomen
+                    if self.gpu_device == "cuda" and not self.check_cuda_availability():
+                        print("⚠️ float16 vereist CUDA - schakel over naar float32")
+                        self.compute_type = "float32"
                 
                 return True
             else:
@@ -156,26 +158,35 @@ class WhisperManager:
             "compute_type": self.compute_type
         }
     
+    def check_cuda_availability(self) -> bool:
+        """Controleer of CUDA beschikbaar is"""
+        try:
+            import torch
+            return torch.cuda.is_available()
+        except ImportError:
+            print("⚠️ PyTorch niet beschikbaar - CUDA niet beschikbaar")
+            return False
+        except Exception as e:
+            print(f"⚠️ CUDA controle gefaald: {e}")
+            return False
+    
     def force_cuda(self) -> bool:
-        """Forceer CUDA gebruik"""
+        """Probeer CUDA te gebruiken als het beschikbaar is"""
         try:
             # Controleer of CUDA beschikbaar is
-            import torch
-            if torch.cuda.is_available():
-                # GPU informatie wordt niet meer getoond om spam te voorkomen
+            if self.check_cuda_availability():
                 self.gpu_device = "cuda"
+                print("✅ CUDA beschikbaar - GPU wordt gebruikt")
                 return True
             else:
-                if not hasattr(self, '_cuda_checked') or not self._cuda_checked:
-                    print("❌ CUDA niet beschikbaar - GPU versnelling niet mogelijk")
-                    self._cuda_checked = True
+                print("⚠️ CUDA niet beschikbaar - gebruik CPU")
                 self.gpu_device = "cpu"
+                self.compute_type = "float32"
                 return False
-        except ImportError:
-            if not hasattr(self, '_cuda_checked') or not self._cuda_checked:
-                print("❌ PyTorch niet beschikbaar - kan CUDA niet controleren")
-                self._cuda_checked = True
+        except Exception as e:
+            print(f"⚠️ CUDA forceren gefaald: {e} - gebruik CPU")
             self.gpu_device = "cpu"
+            self.compute_type = "float32"
             return False
     
     def check_gpu_status(self) -> Dict[str, Any]:

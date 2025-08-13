@@ -28,14 +28,15 @@ class WhisperProcessor:
         
         # Initialiseer Whisper manager
         if whisper_manager:
-            # Gebruik het model uit de instellingen, niet hardcoded medium
+            # Detecteer automatisch beste device en compute type
             whisper_type = "fast"  # Default naar fast
             model = "tiny"  # Default naar tiny
-            device = "cuda"  # Default naar CUDA
-            compute_type = "float16"  # Default naar float16
+            
+            # Detecteer automatisch beste device
+            device, compute_type = self._detect_best_device()
             
             print(f"🚀 WhisperProcessor initialisatie: {whisper_type} - {model}")
-            print(f"🔧 GPU instellingen: device={device}, compute_type={compute_type}")
+            print(f"🔧 Detectie resultaat: device={device}, compute_type={compute_type}")
             
             # Stel GPU instellingen in
             whisper_manager.set_gpu_device(device)
@@ -44,27 +45,54 @@ class WhisperProcessor:
             # Initialiseer whisper manager
             whisper_manager.initialize(whisper_type, model)
             
-            # Initialiseer ook Fast Whisper met GPU instellingen
+            # Initialiseer ook Fast Whisper met gedetecteerde instellingen
             if self.fast_whisper:
                 print(f"📥 Laad Fast Whisper model: {model} op {device} ({compute_type})")
                 success = self.fast_whisper.load_model(model, device, compute_type)
                 if success:
                     print(f"✅ Fast Whisper model geladen: {model} op {device}")
-                    
-                    # GPU informatie wordt niet meer getoond om spam te voorkomen
-                    pass
                 else:
                     print(f"❌ Fast Whisper model laden gefaald: {model} op {device}")
-                    # Probeer fallback naar CPU als CUDA faalt
-                    if device == "cuda":
+                    # Probeer fallback naar CPU als GPU faalt
+                    if device != "cpu":
                         print("🔄 Probeer fallback naar CPU...")
-                        success = self.fast_whisper.load_model(model, "cpu", compute_type)
+                        success = self.fast_whisper.load_model(model, "cpu", "float32")
                         if success:
                             print(f"✅ Fast Whisper model geladen op CPU: {model}")
+                            # Update whisper manager met CPU instellingen
+                            whisper_manager.set_gpu_device("cpu")
+                            whisper_manager.set_compute_type("float32")
                         else:
                             print(f"❌ CPU fallback ook gefaald: {model}")
         else:
             print("⚠️ Whisper manager niet beschikbaar")
+    
+    def _detect_best_device(self):
+        """Detecteer automatisch beste device en compute type"""
+        try:
+            import torch
+            if torch.cuda.is_available():
+                # CUDA beschikbaar - gebruik GPU
+                device = "cuda"
+                compute_type = "float16"
+                print("✅ CUDA gedetecteerd - gebruik GPU")
+            else:
+                # Geen CUDA - gebruik CPU
+                device = "cpu"
+                compute_type = "float32"
+                print("⚠️ CUDA niet beschikbaar - gebruik CPU")
+        except ImportError:
+            # PyTorch niet beschikbaar - gebruik CPU
+            device = "cpu"
+            compute_type = "float32"
+            print("⚠️ PyTorch niet beschikbaar - gebruik CPU")
+        except Exception as e:
+            # Fallback naar CPU bij fouten
+            device = "cpu"
+            compute_type = "float32"
+            print(f"⚠️ Fout bij device detectie: {e} - gebruik CPU")
+        
+        return device, compute_type
     
     def set_settings(self, settings: dict):
         """Stel instellingen in voor de whisper processor"""
@@ -82,39 +110,38 @@ class WhisperProcessor:
             
             model = self.settings.get("whisper_model", "tiny")
             
-            # Haal GPU instellingen op uit settings of gebruik defaults
-            device = self.settings.get("whisper_device", "cuda")
-            compute_type = self.settings.get("whisper_compute_type", "float16")
+            # Gebruik gedetecteerde device in plaats van hardcoded CUDA
+            device, compute_type = self._detect_best_device()
             
             print(f"🔄 Whisper instellingen bijgewerkt: type={whisper_type}, model={model}")
-            print(f"🔧 GPU instellingen: device={device}, compute_type={compute_type}")
+            print(f"🔧 Device instellingen: device={device}, compute_type={compute_type}")
             
-            # Stel GPU instellingen in
+            # Stel device instellingen in
             whisper_manager.set_gpu_device(device)
             whisper_manager.set_compute_type(compute_type)
             
             # Initialiseer whisper manager
             whisper_manager.initialize(whisper_type, model)
             
-            # Initialiseer ook Fast Whisper met nieuwe GPU instellingen
+            # Initialiseer ook Fast Whisper met nieuwe instellingen
             if self.fast_whisper and whisper_type == "fast":
                 print(f"📥 Herlaad Fast Whisper model: {model} op {device} ({compute_type})")
                 success = self.fast_whisper.load_model(model, device, compute_type)
                 if success:
                     print(f"✅ Fast Whisper model herladen: {model} op {device}")
-                    
-                    # GPU informatie wordt niet meer getoond om spam te voorkomen
-                    pass
-            else:
-                print(f"❌ Fast Whisper model herladen gefaald: {model} op {device}")
-                # Probeer fallback naar CPU als CUDA faalt
-                if device == "cuda":
-                    print("🔄 Probeer fallback naar CPU...")
-                    success = self.fast_whisper.load_model(model, "cpu", compute_type)
-                    if success:
-                        print(f"✅ Fast Whisper model geladen op CPU: {model}")
-                    else:
-                        print(f"❌ CPU fallback ook gefaald: {model}")
+                else:
+                    print(f"❌ Fast Whisper model herladen gefaald: {model} op {device}")
+                    # Probeer fallback naar CPU als GPU faalt
+                    if device != "cpu":
+                        print("🔄 Probeer fallback naar CPU...")
+                        success = self.fast_whisper.load_model(model, "cpu", "float32")
+                        if success:
+                            print(f"✅ Fast Whisper model geladen op CPU: {model}")
+                            # Update whisper manager met CPU instellingen
+                            whisper_manager.set_gpu_device("cpu")
+                            whisper_manager.set_compute_type("float32")
+                        else:
+                            print(f"❌ CPU fallback ook gefaald: {model}")
     
     def transcribe_audio(self, audio_path: str, video_path: str) -> Optional[Dict[str, Any]]:
         """Transcribeer audio naar tekst met geselecteerde Whisper type"""
@@ -128,7 +155,7 @@ class WhisperProcessor:
             whisper_type = whisper_manager.get_current_type()
             model = whisper_manager.get_current_model()
             
-            # Haal GPU instellingen op
+            # Haal device instellingen op
             device = whisper_manager.get_gpu_device()
             compute_type = whisper_manager.get_compute_type()
             
@@ -139,9 +166,6 @@ class WhisperProcessor:
             self.processing_thread.status_updated.emit(f"🎤 Audio wordt getranscribeerd met {whisper_type}...")
             self.processing_thread.progress_updated.emit(50.0, f"{whisper_type} transcriptie...")
             
-            # GPU informatie wordt niet meer getoond om spam te voorkomen
-            pass
-            
             # Kies juiste Whisper implementatie
             if whisper_type == "fast":
                 if not self.fast_whisper:
@@ -151,12 +175,33 @@ class WhisperProcessor:
                 # Laad model als nodig
                 if not self.fast_whisper.is_loaded:
                     self.processing_thread.status_updated.emit(f"📥 Laad Fast Whisper model: {model} op {device}...")
-                    self.fast_whisper.load_model(model, device, compute_type)
+                    success = self.fast_whisper.load_model(model, device, compute_type)
+                    if not success and device != "cpu":
+                        # Probeer CPU fallback
+                        print("🔄 Probeer CPU fallback...")
+                        success = self.fast_whisper.load_model(model, "cpu", "float32")
+                        if success:
+                            device = "cpu"
+                            compute_type = "float32"
+                            # Update whisper manager
+                            whisper_manager.set_gpu_device("cpu")
+                            whisper_manager.set_compute_type("float32")
+                
                 elif self.fast_whisper.device != device or self.fast_whisper.compute_type != compute_type:
                     # Herlaad model als device of compute type is gewijzigd
                     self.processing_thread.status_updated.emit(f"🔄 Herlaad Fast Whisper model op {device} ({compute_type})...")
                     print(f"🔄 Herlaad Fast Whisper model op {device} ({compute_type})")
-                    self.fast_whisper.load_model(model, device, compute_type)
+                    success = self.fast_whisper.load_model(model, device, compute_type)
+                    if not success and device != "cpu":
+                        # Probeer CPU fallback
+                        print("🔄 Probeer CPU fallback...")
+                        success = self.fast_whisper.load_model(model, "cpu", "float32")
+                        if success:
+                            device = "cpu"
+                            compute_type = "float32"
+                            # Update whisper manager
+                            whisper_manager.set_gpu_device("cpu")
+                            whisper_manager.set_compute_type("float32")
                 
                 # Maak voortgang callback voor real-time updates
                 def progress_callback(progress: float, message: str):
@@ -177,21 +222,34 @@ class WhisperProcessor:
                 # Laad model als nodig
                 if not self.standard_whisper.is_loaded:
                     self.processing_thread.status_updated.emit(f"📥 Laad Standard Whisper model: {model} op {device}...")
-                    self.standard_whisper.load_model(model, device)
+                    success = self.standard_whisper.load_model(model, device)
+                    if not success and device != "cpu":
+                        # Probeer CPU fallback
+                        print("🔄 Probeer CPU fallback...")
+                        success = self.standard_whisper.load_model(model, "cpu")
+                        if success:
+                            device = "cpu"
+                            # Update whisper manager
+                            whisper_manager.set_gpu_device("cpu")
+                
                 elif hasattr(self.standard_whisper, 'device') and self.standard_whisper.device != device:
                     # Herlaad model als device is gewijzigd
                     self.processing_thread.status_updated.emit(f"🔄 Herlaad Standard Whisper model op {device}...")
                     print(f"🔄 Herlaad Standard Whisper model op {device}")
-                    self.standard_whisper.load_model(model, device)
+                    success = self.standard_whisper.load_model(model, device)
+                    if not success and device != "cpu":
+                        # Probeer CPU fallback
+                        print("🔄 Probeer CPU fallback...")
+                        success = self.standard_whisper.load_model(model, "cpu")
+                        if success:
+                            device = "cpu"
+                            # Update whisper manager
+                            whisper_manager.set_gpu_device("cpu")
                 
                 result = self.standard_whisper.transcribe(audio_path)
             
             if result:
                 print(f"✅ {whisper_type} transcriptie voltooid op {device}")
-                
-                # GPU informatie wordt niet meer getoond om spam te voorkomen
-                pass
-                
                 return result
             else:
                 print(f"❌ {whisper_type} transcriptie gefaald op {device}")

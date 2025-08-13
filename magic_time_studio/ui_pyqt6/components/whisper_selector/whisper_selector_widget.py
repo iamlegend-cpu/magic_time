@@ -63,7 +63,7 @@ class WhisperSelectorWidget(QWidget):
         
         self.setup_ui()
         self.load_available_options()
-        self.load_gpu_settings()
+        # self.load_gpu_settings()  # Deze methode bestaat niet, commentaar uit
     
     def _is_debug_mode(self) -> bool:
         """Controleer of debug mode is ingeschakeld"""

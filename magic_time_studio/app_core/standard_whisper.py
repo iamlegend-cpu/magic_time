@@ -11,38 +11,86 @@ class StandardWhisper:
     
     def __init__(self):
         self.model = None
-        self.device = "cuda"  # Forceer CUDA
+        self.device = "cpu"  # Default naar CPU
         self.is_loaded = False
+        self.gpu_available = False
+        self._check_gpu_availability()
     
-    def load_model(self, model_name: str, device: str = "cuda") -> bool:
+    def _check_gpu_availability(self):
+        """Controleer GPU beschikbaarheid"""
+        try:
+            import torch
+            self.gpu_available = torch.cuda.is_available()
+            if self.gpu_available:
+                print("✅ CUDA beschikbaar - GPU kan worden gebruikt")
+            else:
+                print("⚠️ CUDA niet beschikbaar - gebruik CPU")
+        except ImportError:
+            print("⚠️ PyTorch niet beschikbaar - gebruik CPU")
+            self.gpu_available = False
+        except Exception as e:
+            print(f"⚠️ GPU controle gefaald: {e} - gebruik CPU")
+            self.gpu_available = False
+    
+    def load_model(self, model_name: str, device: str = None) -> bool:
         """Laad Whisper model"""
         try:
-            # Forceer altijd CUDA
-            if device != "cuda":
-                print(f"⚠️ Device {device} overschreven naar cuda")
-                device = "cuda"
+            # Gebruik opgegeven device of detecteer beste optie
+            if device is None:
+                device = "cuda" if self.gpu_available else "cpu"
             
             print(f"📥 Laad standaard Whisper model: {model_name} op {device}")
             
             # Import en laad echte OpenAI Whisper
-            import whisper
-            
-            # Controleer of CUDA beschikbaar is
-            import torch
-            if not torch.cuda.is_available():
-                print("❌ CUDA niet beschikbaar - kan niet laden")
+            try:
+                import whisper
+            except ImportError as e:
+                print(f"❌ Whisper module niet beschikbaar: {e}")
                 return False
             
-            # Laad het model op CUDA
-            self.model = whisper.load_model(model_name, device=device)
-            self.device = device
-            self.is_loaded = True
+            # Controleer of CUDA beschikbaar is als we het willen gebruiken
+            if device == "cuda" and not self.gpu_available:
+                print("⚠️ CUDA niet beschikbaar - schakel over naar CPU")
+                device = "cpu"
             
-            print(f"✅ Standaard Whisper model geladen: {model_name} op CUDA")
-            return True
+            # Probeer het model te laden met betere error handling
+            try:
+                # Forceer CPU als er problemen zijn met CUDA
+                if device == "cuda":
+                    try:
+                        self.model = whisper.load_model(model_name, device=device)
+                    except Exception as cuda_error:
+                        print(f"⚠️ CUDA laden gefaald: {cuda_error} - probeer CPU")
+                        device = "cpu"
+                        self.model = whisper.load_model(model_name, device="cpu")
+                else:
+                    self.model = whisper.load_model(model_name, device=device)
+                
+                self.device = device
+                self.is_loaded = True
+                
+                print(f"✅ Standaard Whisper model geladen: {model_name} op {device}")
+                return True
+                
+            except Exception as model_error:
+                print(f"❌ Fout bij laden model: {model_error}")
+                
+                # Probeer fallback naar CPU als GPU faalt
+                if device != "cpu":
+                    print("🔄 Probeer fallback naar CPU...")
+                    try:
+                        self.model = whisper.load_model(model_name, device="cpu")
+                        self.device = "cpu"
+                        self.is_loaded = True
+                        print(f"✅ Standaard Whisper model geladen op CPU: {model_name}")
+                        return True
+                    except Exception as cpu_error:
+                        print(f"❌ CPU fallback ook gefaald: {cpu_error}")
+                        return False
+                return False
             
         except Exception as e:
-            print(f"❌ Fout bij laden standaard Whisper model: {e}")
+            print(f"❌ Onverwachte fout bij laden standaard Whisper model: {e}")
             return False
     
     def transcribe(self, audio_path: str, language: str = None) -> Optional[Dict[str, Any]]:

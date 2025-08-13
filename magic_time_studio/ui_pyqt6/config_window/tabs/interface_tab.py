@@ -103,12 +103,11 @@ class InterfaceTab(QWidget):
         """Laad configuratie"""
         try:
             # Panel zichtbaarheid
-            visible_panels = config_manager.get_visible_panels()
-            self.settings_panel_check.setChecked(visible_panels.get("settings", True))
-            self.files_panel_check.setChecked(visible_panels.get("files", True))
-            self.processing_panel_check.setChecked(visible_panels.get("processing", True))
-            self.charts_panel_check.setChecked(visible_panels.get("charts", True))
-            self.batch_panel_check.setChecked(visible_panels.get("batch", True))
+            self.settings_panel_check.setChecked(config_manager.is_panel_visible("settings_panel"))
+            self.files_panel_check.setChecked(config_manager.is_panel_visible("files_panel"))
+            self.processing_panel_check.setChecked(config_manager.is_panel_visible("processing_panel"))
+            self.charts_panel_check.setChecked(config_manager.is_panel_visible("charts_panel"))
+            self.batch_panel_check.setChecked(config_manager.is_panel_visible("batch_panel"))
             
             # UI instellingen
             default_window_size = config_manager.get("DEFAULT_WINDOW_SIZE", "Gemiddeld (1200×800)")
@@ -123,11 +122,11 @@ class InterfaceTab(QWidget):
         """Sla configuratie op"""
         try:
             # Panel zichtbaarheid
-            config_manager.set_panel_visibility("settings", self.settings_panel_check.isChecked())
-            config_manager.set_panel_visibility("files", self.files_panel_check.isChecked())
-            config_manager.set_panel_visibility("processing", self.processing_panel_check.isChecked())
-            config_manager.set_panel_visibility("charts", self.charts_panel_check.isChecked())
-            config_manager.set_panel_visibility("batch", self.batch_panel_check.isChecked())
+            config_manager.set_panel_visibility("settings_panel", self.settings_panel_check.isChecked())
+            config_manager.set_panel_visibility("files_panel", self.files_panel_check.isChecked())
+            config_manager.set_panel_visibility("processing_panel", self.processing_panel_check.isChecked())
+            config_manager.set_panel_visibility("charts_panel", self.charts_panel_check.isChecked())
+            config_manager.set_panel_visibility("batch_panel", self.batch_panel_check.isChecked())
             
             # Window grootte (gebruiksvriendelijk)
             window_size_text = self.window_size_combo.currentText()

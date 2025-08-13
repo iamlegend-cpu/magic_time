@@ -9,44 +9,56 @@ from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox
 from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QIcon
 
+# Import onze managers (deze zijn altijd beschikbaar)
+from .ui_manager import UIManager
+from .module_manager import ModuleManager
+from .processing_manager import ProcessingManager
+from .file_handler import FileHandler
+from .cleanup_manager import CleanupManager
+from .theme_manager import ThemeManager as AppThemeManager
+
 # Veilige imports met fallbacks
 try:
-    from core.config import config_manager
+    from magic_time_studio.core.config import config_manager
 except ImportError:
     print("⚠️ config_manager niet gevonden, maak fallback aan...")
     config_manager = None
 
 try:
-    from core.stop_manager import stop_manager
+    from magic_time_studio.core.stop_manager import stop_manager
 except ImportError:
     print("⚠️ stop_manager niet gevonden, maak fallback aan...")
     stop_manager = None
 
 try:
-    from ui_pyqt6.main_window import MainWindow
+    from magic_time_studio.ui_pyqt6.main_window import MainWindow
     print("✅ MainWindow succesvol geïmporteerd")
 except ImportError as e:
     print(f"⚠️ MainWindow niet gevonden: {e}")
     print("🔍 Probeer alternatieve import...")
     try:
-        from ui_pyqt6.main_window_parts.main_window_core import MainWindow
+        from magic_time_studio.ui_pyqt6.main_window_parts.main_window_core import MainWindow
         print("✅ MainWindow geïmporteerd via main_window_core")
     except ImportError as e2:
         print(f"❌ Ook alternatieve import gefaald: {e2}")
         MainWindow = None
 
 try:
-    from ui_pyqt6.themes import ThemeManager
+    from magic_time_studio.ui_pyqt6.themes import ThemeManager
 except ImportError:
     print("⚠️ ThemeManager niet gevonden, maak fallback aan...")
     ThemeManager = None
 
 # Import processing modules
-from core.all_functions import *
+try:
+    from magic_time_studio.core.all_functions import *
+    print("✅ All functions geladen")
+except ImportError:
+    print("⚠️ all_functions niet gevonden, maak fallback aan...")
 
 # Import specifieke modules
 try:
-    from core.translation_functions import *
+    from magic_time_studio.core.translation_functions import *
     translator = "libretranslate"  # Default vertaler
     print("✅ Translation functions geladen")
 except ImportError:
@@ -54,7 +66,7 @@ except ImportError:
     translator = None
 
 try:
-    from core.audio_functions import *
+    from magic_time_studio.core.audio_functions import *
     audio_processor = "ffmpeg"  # Default audio processor
     print("✅ Audio functions geladen")
 except ImportError:
@@ -62,7 +74,7 @@ except ImportError:
     audio_processor = None
 
 try:
-    from core.video_functions import *
+    from magic_time_studio.core.video_functions import *
     video_processor = "ffmpeg"  # Default video processor
     print("✅ Video functions geladen")
 except ImportError:
@@ -86,14 +98,6 @@ try:
 except ImportError:
     print("⚠️ single_instance niet gevonden, maak fallback aan...")
     release_single_instance_lock = lambda: None
-
-# Import onze managers
-from .ui_manager import UIManager
-from .module_manager import ModuleManager
-from .processing_manager import ProcessingManager
-from .file_handler import FileHandler
-from .cleanup_manager import CleanupManager
-from .theme_manager import ThemeManager as AppThemeManager
 
 # Debug mode - zet op False om debug output uit te zetten
 DEBUG_MODE = False

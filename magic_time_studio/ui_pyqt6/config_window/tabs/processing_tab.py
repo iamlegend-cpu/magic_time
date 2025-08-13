@@ -1,6 +1,6 @@
 """
 Processing Tab voor Config Window
-Beheert verwerkingsinstellingen inclusief Whisper configuratie
+Beheert verwerkingsinstellingen (Whisper instellingen zijn verplaatst naar GUI instellingen panel)
 """
 
 from PyQt6.QtWidgets import (
@@ -9,16 +9,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 
-# Import whisper selector
-try:
-    from ...components.whisper_selector import WhisperSelectorWidget
-    from core.config import config_manager
-except ImportError:
-    from core.config import config_manager
-    # Fallback - maak dummy WhisperSelectorWidget
-    class WhisperSelectorWidget:
-        def __init__(self):
-            pass
+from core.config import config_manager
 
 class ProcessingTab(QWidget):
     """Tab voor verwerkingsinstellingen"""
@@ -31,17 +22,6 @@ class ProcessingTab(QWidget):
     def setup_ui(self):
         """Setup de UI"""
         layout = QVBoxLayout(self)
-        
-        # Whisper instellingen - gebruik de volledige WhisperSelectorWidget
-        whisper_group = QGroupBox("🎤 Whisper Instellingen")
-        whisper_layout = QVBoxLayout(whisper_group)
-        
-        # Voeg de volledige whisper selector toe
-        self.whisper_selector = WhisperSelectorWidget()
-        whisper_layout.addWidget(self.whisper_selector)
-        
-        whisper_group.setLayout(whisper_layout)
-        layout.addWidget(whisper_group)
         
         # Device instellingen
         device_group = QGroupBox("💻 Device Instellingen")
@@ -198,8 +178,6 @@ class ProcessingTab(QWidget):
             # Subtitle type (altijd softcoded)
             config_manager.set("subtitle_type", "softcoded")  # Altijd softcoded, hardcoded wordt niet meer ondersteund
             
-            # Whisper instellingen worden automatisch opgeslagen door de WhisperSelectorWidget
-            
             print("✅ Processing configuratie opgeslagen")
             
         except Exception as e:
@@ -208,8 +186,6 @@ class ProcessingTab(QWidget):
     def get_current_settings(self) -> dict:
         """Krijg huidige instellingen als dictionary"""
         return {
-            "whisper_type": self.whisper_selector.current_whisper_type,
-            "whisper_model": self.whisper_selector.current_model,
             "device": self.device_combo.currentText(),
             "worker_count": self.workers_spin.value(),
             "cpu_limit_percentage": self.cpu_limit_spin.value(),
