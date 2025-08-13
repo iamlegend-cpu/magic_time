@@ -79,4 +79,7 @@ if 'logging' not in sys.modules:
     logging_module.CRITICAL = 50
     logging_module.DEBUG = 10
     sys.modules['logging'] = logging_module
-    print("✅ Logging module geïnjecteerd in sys.modules") 
+    print("✅ Logging module geïnjecteerd in sys.modules")
+
+# Export een standaard logger voor compatibiliteit
+logger = get_logger("magic_time_studio") 

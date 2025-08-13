@@ -70,11 +70,11 @@ class UIUpdatesMixin:
         # Voeg panelen toe aan splitter (alleen zichtbare)
         self.visible_panels = {}
         panel_configs = [
-            ("settings", self.settings_panel, 270),
-            ("files", self.files_panel, 370),
-            ("processing", self.processing_panel, 470),
-            ("charts", self.charts_panel, 320),
-            ("batch", self.batch_panel, 320)
+            ("settings_panel", self.settings_panel, 270),
+            ("files_panel", self.files_panel, 370),
+            ("processing_panel", self.processing_panel, 470),
+            ("charts_panel", self.charts_panel, 320),
+            ("batch_panel", self.batch_panel, 320)
         ]
         
         visible_sizes = []
@@ -473,11 +473,11 @@ class UIUpdatesMixin:
             # Voeg alleen zichtbare panels toe
             self.visible_panels = {}
             panel_configs = [
-                ("settings", self.settings_panel, 270),
-                ("files", self.files_panel, 370),
-                ("processing", self.processing_panel, 470),
-                ("charts", self.charts_panel, 320),
-                ("batch", self.batch_panel, 320)
+                ("settings_panel", self.settings_panel, 270),
+                ("files_panel", self.files_panel, 370),
+                ("processing_panel", self.processing_panel, 470),
+                ("charts_panel", self.charts_panel, 320),
+                ("batch_panel", self.batch_panel, 320)
             ]
             
             visible_sizes = []

@@ -251,23 +251,23 @@ Whisper Type: {whisper_diagnose.get_current_whisper_type()}
     
     def show_charts_panel(self):
         """Toon/verberg charts panel"""
-        if "charts" in self.visible_panels:
+        if "charts_panel" in self.visible_panels:
             # Panel is zichtbaar, verberg het
             self.charts_panel.hide()
             self.splitter.takeWidget(self.charts_panel)
-            del self.visible_panels["charts"]
+            del self.visible_panels["charts_panel"]
             config_mgr = _get_config_manager()
             if config_mgr:
-                config_mgr.set_panel_visibility("charts", False)
+                config_mgr.set_panel_visibility("charts_panel", False)
             self.update_status("Grafieken panel verborgen")
         else:
             # Panel is verborgen, toon het
             self.splitter.addWidget(self.charts_panel)
             self.charts_panel.show()
-            self.visible_panels["charts"] = self.charts_panel
+            self.visible_panels["charts_panel"] = self.charts_panel
             config_mgr = _get_config_manager()
             if config_mgr:
-                config_mgr.set_panel_visibility("charts", True)
+                config_mgr.set_panel_visibility("charts_panel", True)
             self.update_status("Grafieken panel zichtbaar")
         
         # Pas window grootte aan
@@ -275,23 +275,23 @@ Whisper Type: {whisper_diagnose.get_current_whisper_type()}
     
     def show_batch_panel(self):
         """Toon/verberg batch panel"""
-        if "batch" in self.visible_panels:
+        if "batch_panel" in self.visible_panels:
             # Panel is zichtbaar, verberg het
             self.batch_panel.hide()
             self.splitter.takeWidget(self.batch_panel)
-            del self.visible_panels["batch"]
+            del self.visible_panels["batch_panel"]
             config_mgr = _get_config_manager()
             if config_mgr:
-                config_mgr.set_panel_visibility("batch", False)
+                config_mgr.set_panel_visibility("batch_panel", False)
             self.update_status("Batch panel verborgen")
         else:
             # Panel is verborgen, toon het
             self.splitter.addWidget(self.batch_panel)
             self.batch_panel.show()
-            self.visible_panels["batch"] = self.batch_panel
+            self.visible_panels["batch_panel"] = self.batch_panel
             config_mgr = _get_config_manager()
             if config_mgr:
-                config_mgr.set_panel_visibility("batch", True)
+                config_mgr.set_panel_visibility("batch_panel", True)
             self.update_status("Batch panel zichtbaar")
         
         # Pas window grootte aan

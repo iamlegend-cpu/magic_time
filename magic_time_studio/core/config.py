@@ -5,6 +5,7 @@ Configuratie management voor Magic Time Studio
 import os
 import sys
 from pathlib import Path
+import datetime
 
 # Normale imports
 try:
@@ -35,6 +36,7 @@ try:
                 'completed_files_panel': True
             }
             self._load_config()
+            self._load_panel_config()
         
         def _load_config(self):
             """Laad configuratie uit verschillende bronnen"""
@@ -67,6 +69,48 @@ try:
                 # Normale Python omgeving
                 project_root = utils_module.get_project_root()
                 return os.path.join(project_root, 'whisper_config.env')
+        
+        def _get_panel_config_path(self):
+            """Krijg het pad naar het panel configuratie bestand"""
+            if hasattr(sys, '_MEIPASS'):
+                # PyInstaller bundle
+                bundle_dir = sys._MEIPASS
+                return os.path.join(bundle_dir, 'panel_config.json')
+            else:
+                # Normale Python omgeving
+                project_root = utils_module.get_project_root()
+                return os.path.join(project_root, 'panel_config.json')
+        
+        def _load_panel_config(self):
+            """Laad panel configuratie uit JSON bestand"""
+            import json
+            panel_config_file = self._get_panel_config_path()
+            if panel_config_file and os.path.exists(panel_config_file):
+                try:
+                    with open(panel_config_file, 'r', encoding='utf-8') as f:
+                        panel_data = json.load(f)
+                        if 'panel_visibility' in panel_data:
+                            self.panel_visibility.update(panel_data['panel_visibility'])
+                        print(f"✅ Panel configuratie geladen uit: {panel_config_file}")
+                except Exception as e:
+                    print(f"⚠️ Fout bij laden panel configuratie: {e}")
+        
+        def _save_panel_config(self):
+            """Sla panel configuratie op naar JSON bestand"""
+            import json
+            panel_config_file = self._get_panel_config_path()
+            if panel_config_file:
+                try:
+                    os.makedirs(os.path.dirname(panel_config_file), exist_ok=True)
+                    panel_data = {
+                        'panel_visibility': self.panel_visibility,
+                        'last_updated': str(datetime.datetime.now())
+                    }
+                    with open(panel_config_file, 'w', encoding='utf-8') as f:
+                        json.dump(panel_data, f, indent=2, ensure_ascii=False)
+                    print(f"✅ Panel configuratie opgeslagen naar: {panel_config_file}")
+                except Exception as e:
+                    print(f"⚠️ Fout bij opslaan panel configuratie: {e}")
         
         def get(self, key: str, default=None):
             """Krijg een configuratie waarde"""
@@ -146,6 +190,7 @@ try:
         def set_panel_visibility(self, panel_name: str, visible: bool):
             """Stel panel zichtbaarheid in"""
             self.panel_visibility[panel_name] = visible
+            self._save_panel_config()  # Sla direct op
         
         def get_all_panels(self):
             """Krijg alle beschikbare panels"""
@@ -171,10 +216,12 @@ try:
         def load_configuration(self):
             """Laad configuratie"""
             self._load_config()
+            self._load_panel_config()
         
         def save_configuration(self):
             """Sla configuratie op"""
             self.save_config()
+            self._save_panel_config()
     
     config_manager = ConfigManager()
     
@@ -193,6 +240,46 @@ except ImportError as e:
                 'charts_panel': True,
                 'completed_files_panel': True
             }
+            self._load_panel_config()
+        
+        def _get_panel_config_path(self):
+            """Krijg het pad naar het panel configuratie bestand"""
+            if hasattr(sys, '_MEIPASS'):
+                return sys._MEIPASS
+            else:
+                return os.path.join(os.getcwd(), 'panel_config.json')
+        
+        def _load_panel_config(self):
+            """Laad panel configuratie uit JSON bestand (dummy implementatie)"""
+            import json
+            panel_config_file = self._get_panel_config_path()
+            if panel_config_file and os.path.exists(panel_config_file):
+                try:
+                    with open(panel_config_file, 'r', encoding='utf-8') as f:
+                        panel_data = json.load(f)
+                        if 'panel_visibility' in panel_data:
+                            self.panel_visibility.update(panel_data['panel_visibility'])
+                        print(f"✅ Panel configuratie geladen uit: {panel_config_file}")
+                except Exception as e:
+                    print(f"⚠️ Fout bij laden panel configuratie: {e}")
+        
+        def _save_panel_config(self):
+            """Sla panel configuratie op naar JSON bestand (dummy implementatie)"""
+            import json
+            import datetime
+            panel_config_file = self._get_panel_config_path()
+            if panel_config_file:
+                try:
+                    os.makedirs(os.path.dirname(panel_config_file), exist_ok=True)
+                    panel_data = {
+                        'panel_visibility': self.panel_visibility,
+                        'last_updated': str(datetime.datetime.now())
+                    }
+                    with open(panel_config_file, 'w', encoding='utf-8') as f:
+                        json.dump(panel_data, f, indent=2, ensure_ascii=False)
+                    print(f"✅ Panel configuratie opgeslagen naar: {panel_config_file}")
+                except Exception as e:
+                    print(f"⚠️ Fout bij opslaan panel configuratie: {e}")
         
         def get(self, key: str, default=None):
             return default
@@ -233,15 +320,15 @@ except ImportError as e:
         # Voeg ontbrekende methoden toe
         def load_configuration(self):
             """Laad configuratie (dummy implementatie)"""
-            pass
+            self._load_panel_config()
         
         def save_configuration(self):
             """Sla configuratie op (dummy implementatie)"""
-            pass
+            self._save_panel_config()
         
         def get_visible_panels(self):
             """Krijg lijst van zichtbare panels (dummy implementatie)"""
-            return list(self.panel_visibility.keys())
+            return [name for name, visible in self.panel_visibility.items() if visible]
         
         def is_panel_visible(self, panel_name: str):
             """Controleer of een panel zichtbaar is (dummy implementatie)"""
@@ -254,6 +341,7 @@ except ImportError as e:
         def set_panel_visibility(self, panel_name: str, visible: bool):
             """Stel panel zichtbaarheid in (dummy implementatie)"""
             self.panel_visibility[panel_name] = visible
+            self._save_panel_config()  # Sla direct op
         
         def get_all_panels(self):
             """Krijg alle beschikbare panels (dummy implementatie)"""
@@ -273,6 +361,4 @@ except ImportError as e:
         
         def set_language(self, language: str):
             """Stel taal in (dummy implementatie)"""
-            pass
-    
-    config_manager = DummyConfigManager() 
+            pass 
