@@ -41,9 +41,6 @@ class UIManager:
         # Stel taakbalk icoon in
         self.setTaskbarIcon()
         
-        # Toon hoofdvenster direct
-        self.show_main_window()
-        
         print("✅ PyQt6 UI aangemaakt")
     
     def _create_qapplication(self):
@@ -112,6 +109,8 @@ class UIManager:
                 return True
             except Exception as e:
                 print(f"❌ Fout bij aanmaken hoofdvenster: {e}")
+                import traceback
+                traceback.print_exc()
                 return False
         else:
             print("❌ MainWindow niet geïnitialiseerd, applicatie zal niet werken")
@@ -128,24 +127,18 @@ class UIManager:
     def _connect_processing_signals(self):
         """Verbind processing signalen"""
         try:
-            self.main_window.processing_started.connect(self.main_app._on_start_processing)
-            print("✅ processing_started signal verbonden")
+            self.main_window.main_processing_started.connect(self.main_app._on_start_processing)
+            print("✅ main_processing_started signal verbonden")
         except Exception as e:
-            print(f"⚠️ Fout bij verbinden processing_started: {e}")
-        
-        try:
-            self.main_window.processing_stopped.connect(self.main_app._on_stop_processing)
-            print("✅ processing_stopped signal verbonden")
-        except Exception as e:
-            print(f"⚠️ Fout bij verbinden processing_stopped: {e}")
+            print(f"⚠️ Fout bij verbinden main_processing_started: {e}")
     
     def _connect_file_signals(self):
         """Verbind bestand signalen"""
         try:
-            self.main_window.file_selected.connect(self.main_app._on_file_selected)
-            print("✅ file_selected signal verbonden")
+            self.main_window.main_file_selected.connect(self.main_app._on_file_selected)
+            print("✅ main_file_selected signal verbonden")
         except Exception as e:
-            print(f"⚠️ Fout bij verbinden file_selected: {e}")
+            print(f"⚠️ Fout bij verbinden main_file_selected: {e}")
     
     def setTaskbarIcon(self):
         """Stel taakbalk icoon in"""
@@ -183,6 +176,10 @@ class UIManager:
             try:
                 self.main_window.show()
                 print("✅ Hoofdvenster getoond")
+                
+                # Koppel monitors na het tonen van het venster
+                self._connect_monitors()
+                
                 return True
             except Exception as e:
                 print(f"❌ Fout bij tonen hoofdvenster: {e}")
@@ -190,3 +187,13 @@ class UIManager:
         else:
             print("❌ main_window is None, applicatie zal niet tonen")
             return False
+    
+    def _connect_monitors(self):
+        """Verbind monitors aan het hoofdvenster"""
+        try:
+            if hasattr(self.main_window, 'connect_monitors'):
+                self.main_window.connect_monitors()
+            else:
+                print("⚠️ connect_monitors methode niet beschikbaar in main_window")
+        except Exception as e:
+            print(f"⚠️ Fout bij koppelen GPU monitor: {e}")

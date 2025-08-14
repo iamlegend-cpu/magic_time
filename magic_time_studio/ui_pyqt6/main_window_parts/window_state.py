@@ -12,10 +12,14 @@ import os
 def _get_config_manager():
     """Lazy config manager import om circulaire import te voorkomen"""
     try:
-        from core.config import config_manager
+        from ...core.config import config_manager
         return config_manager
     except ImportError:
-        return None
+        try:
+            from magic_time_studio.core.config import config_manager
+            return config_manager
+        except ImportError:
+            return None
 
 class WindowStateMixin:
     """Mixin voor window state functionaliteit"""
@@ -82,7 +86,7 @@ class WindowStateMixin:
         
         config_mgr = _get_config_manager()
         if config_mgr:
-            config_mgr.set("window_geometry", {
+            config_mgr.set_json("window_geometry", {
                 "x": geometry.x(),
                 "y": geometry.y(),
                 "width": geometry.width(),
@@ -95,7 +99,7 @@ class WindowStateMixin:
         """Herstel window state"""
         try:
             config_mgr = _get_config_manager()
-            geometry_data = config_mgr.get("window_geometry", {}) if config_mgr else {}
+            geometry_data = config_mgr.get_json("window_geometry", {}) if config_mgr else {}
             if geometry_data:
                 x = geometry_data.get("x", 100)
                 y = geometry_data.get("y", 100)

@@ -1,6 +1,6 @@
 """
 Whisper Selector Widget Component voor Magic Time Studio
-UI component voor het kiezen tussen standaard Whisper en Fast Whisper
+UI component voor WhisperX model selectie
 Met automatische model selectie en laden
 """
 
@@ -43,13 +43,10 @@ class WhisperSelectorWidget(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        # Gebruik configuratie voor defaults
+        # Gebruik configuratie voor defaults - altijd WhisperX
         config_mgr = _get_config_manager()
-        self.current_whisper_type = config_mgr.get("whisper_type", "fast") if config_mgr else "fast"
-        if self.current_whisper_type == "fast":
-            self.current_model = config_mgr.get("default_fast_whisper_model", "medium") if config_mgr else "medium"
-        else:
-            self.current_model = config_mgr.get("default_whisper_model", "medium") if config_mgr else "medium"
+        self.current_whisper_type = "whisperx"  # Altijd WhisperX
+        self.current_model = config_mgr.get("default_whisperx_model", "large-v3") if config_mgr else "large-v3"
         
         # GPU instellingen
         self.current_device = config_mgr.get_env("WHISPER_DEVICE", "cuda") if config_mgr else "cuda"
@@ -86,19 +83,19 @@ class WhisperSelectorWidget(QWidget):
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
         
-        # Whisper Type Selector
-        type_group = QGroupBox("Whisper Type")
+        # WhisperX Type Display (niet meer selecteerbaar)
+        type_group = QGroupBox("WhisperX Type")
         type_layout = QVBoxLayout()
         
-        # Type selector
-        type_selector_layout = QHBoxLayout()
-        type_selector_layout.addWidget(QLabel("Type:"))
+        # Type display (alleen label)
+        type_display_layout = QHBoxLayout()
+        type_display_layout.addWidget(QLabel("Type:"))
         
-        self.type_combo = QComboBox()
-        self.type_combo.currentTextChanged.connect(self.on_type_changed)
-        type_selector_layout.addWidget(self.type_combo)
+        type_label = QLabel("WhisperX")
+        type_label.setStyleSheet("color: #4CAF50; font-weight: bold; font-size: 12px;")
+        type_display_layout.addWidget(type_label)
         
-        type_layout.addLayout(type_selector_layout)
+        type_layout.addLayout(type_display_layout)
         
         type_group.setLayout(type_layout)
         layout.addWidget(type_group)
@@ -120,7 +117,7 @@ class WhisperSelectorWidget(QWidget):
         model_group.setLayout(model_layout)
         layout.addWidget(model_group)
         
-        # GPU Device Selector (alleen voor Fast Whisper)
+        # GPU Device Selector (voor WhisperX)
         self.gpu_group = QGroupBox("🎮 GPU Device")
         gpu_layout = QVBoxLayout()
         
@@ -186,43 +183,30 @@ class WhisperSelectorWidget(QWidget):
         self.update_gpu_status()
     
     def load_available_options(self):
-        """Laad beschikbare Whisper types en modellen"""
+        """Laad beschikbare WhisperX modellen"""
         try:
-            # Laad beschikbare types
-            available_types = whisper_manager.get_available_whisper_types()
-            self.type_combo.clear()
+            # WhisperX is altijd beschikbaar
+            self.current_whisper_type = "whisperx"
             
-            for whisper_type in available_types:
-                if whisper_type == "standard":
-                    self.type_combo.addItem("🐌 Standaard Whisper", "standard")
-                elif whisper_type == "fast":
-                    self.type_combo.addItem("🚀 Fast Whisper", "fast")
-            
-            # Stel default type in
-            config_mgr = _get_config_manager()
-            default_type = config_mgr.get("whisper_type", "fast") if config_mgr else "fast"
-            index = self.type_combo.findData(default_type)
-            if index >= 0:
-                self.type_combo.setCurrentIndex(index)
-                self.current_whisper_type = default_type
-            
-            # Update modellen voor huidig type
+            # Update modellen voor WhisperX
             self.update_models()
             
         except Exception as e:
-            logger.log_debug(f"❌ Fout bij laden Whisper opties: {e}")
+            logger.log_debug(f"❌ Fout bij laden WhisperX opties: {e}")
     
     def update_models(self):
-        """Update beschikbare modellen voor huidig type"""
+        """Update beschikbare modellen voor WhisperX"""
         try:
             self.model_combo.clear()
             
-            available_models = whisper_manager.get_available_models(self.current_whisper_type)
+            available_models = whisper_manager.get_available_models("whisperx")
             
             for model in available_models:
                 display_name = model
                 if model == "large-v3-turbo":
                     display_name = "🚀 Large V3 Turbo (Aanbevolen)"
+                elif model == "large-v3":
+                    display_name = "🚀 Large V3 (Aanbevolen)"
                 elif model == "large":
                     display_name = "📊 Large"
                 elif model == "medium":
@@ -238,10 +222,7 @@ class WhisperSelectorWidget(QWidget):
             
             # Stel default model in
             config_mgr = _get_config_manager()
-            if self.current_whisper_type == "fast":
-                default_model = config_mgr.get("default_fast_whisper_model", "medium") if config_mgr else "medium"
-            else:
-                default_model = config_mgr.get("default_whisper_model", "medium") if config_mgr else "medium"
+            default_model = config_mgr.get("default_whisperx_model", "large-v3") if config_mgr else "large-v3"
             
             index = self.model_combo.findData(default_model)
             if index >= 0:
@@ -254,53 +235,25 @@ class WhisperSelectorWidget(QWidget):
         except Exception as e:
             logger.log_debug(f"❌ Fout bij updaten modellen: {e}")
     
-    def on_type_changed(self, text):
-        """Callback voor type wijziging"""
-        try:
-            # Haal data op uit combo box
-            current_data = self.type_combo.currentData()
-            if current_data:
-                self.current_whisper_type = current_data
-                if self._is_debug_mode():
-                    print(f"🔧 [DEBUG] Whisper type gewijzigd naar: {self.current_whisper_type}")
-                
-                # Update modellen
-                self.update_models()
-                
-                # Toon/verberg GPU opties op basis van type
-                self.gpu_group.setVisible(current_data == "fast")
-                
-                # Sla type op in configuratie
-                config_mgr = _get_config_manager()
-                if config_mgr:
-                    config_mgr.set("whisper_type", self.current_whisper_type)
-                    
-                    # Sla ook op in environment configuratie
-                    config_mgr.set_env("WHISPER_TYPE", self.current_whisper_type)
-                
-                # Emit signal voor type wijziging
-                self.whisper_changed.emit(self.current_whisper_type, self.current_model)
-                
-        except Exception as e:
-            logger.log_debug(f"❌ Fout bij type wijziging: {e}")
+
     
     def on_model_changed(self, text):
-        """Callback voor model wijziging"""
+        """Callback voor WhisperX model wijziging"""
         try:
             # Haal data op uit combo box
             current_data = self.model_combo.currentData()
             if current_data:
                 self.current_model = current_data
                 if self._is_debug_mode():
-                    print(f"🔧 [DEBUG] Whisper model gewijzigd naar: {self.current_model}")
+                    print(f"🔧 [DEBUG] WhisperX model gewijzigd naar: {self.current_model}")
                 
                 # Sla model op in configuratie
                 config_mgr = _get_config_manager()
                 if config_mgr:
-                    if self.current_whisper_type == "fast":
-                        config_mgr.set("default_fast_whisper_model", self.current_model)
-                    else:
-                        config_mgr.set("whisper_model", self.current_model)
+                    # Sla op in environment configuratie
+                    config_mgr.set_env("DEFAULT_WHISPERX_MODEL", self.current_model)
+                    if self._is_debug_mode():
+                        print(f"🔧 [DEBUG] WhisperX model opgeslagen in config: {self.current_model}")
                 
                 # Start automatisch laden uitgeschakeld om vastlopen te voorkomen
                 # self.auto_load_timer.start(2000)  # Uitgeschakeld
@@ -545,23 +498,17 @@ class WhisperSelectorWidget(QWidget):
     def set_settings(self, whisper_type, model):
         """Stel instellingen in"""
         try:
-            # Update type
-            index = self.type_combo.findData(whisper_type)
+            # Update model
+            self.current_model = model
+            index = self.model_combo.findData(model)
             if index >= 0:
-                self.type_combo.setCurrentIndex(index)
-                self.current_whisper_type = whisper_type
-            
-            # Update model (wordt automatisch gedaan door type change)
-            # De model update gebeurt automatisch in on_type_changed
+                self.model_combo.setCurrentIndex(index)
             
             # Sla instellingen op in configuratie
             config_mgr = _get_config_manager()
             if config_mgr:
-                config_mgr.set("whisper_type", whisper_type)
-                if whisper_type == "fast":
-                    config_mgr.set("default_fast_whisper_model", model)
-                else:
-                    config_mgr.set("default_whisper_model", model)
+                config_mgr.set("default_whisperx_model", model)
+                config_mgr.set_env("DEFAULT_WHISPERX_MODEL", model)
             
         except Exception as e:
             logger.log_debug(f"❌ Fout bij instellen instellingen: {e}")

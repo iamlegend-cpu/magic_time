@@ -5,26 +5,41 @@ Bevat alle menu gerelateerde functies
 
 import os
 from PyQt6.QtWidgets import QFileDialog, QMessageBox, QDialog, QApplication
-from ..config_window import ConfigWindow
-from ..log_viewer import LogViewer
-from ..components.menu_manager import MenuManager
+try:
+    from ..config_window import ConfigWindow
+except ImportError:
+    ConfigWindow = None
+
+try:
+    from ..log_viewer import LogViewer
+except ImportError:
+    LogViewer = None
+
+try:
+    from ..components.menu_manager import MenuManager
+except ImportError:
+    MenuManager = None
 # Lazy import van config_manager om circulaire import te voorkomen
 def _get_config_manager():
     """Lazy config manager import om circulaire import te voorkomen"""
     try:
-        from core.config import config_manager
+        from ...core.config import config_manager
         return config_manager
     except ImportError:
-        # Fallback voor directe import
-        import sys
-        sys.path.append('..')
         try:
-            from core.config import config_manager
+            from magic_time_studio.core.config import config_manager
             return config_manager
         except ImportError:
             return None
+
 # Import processing modules
-from core.all_functions import *
+try:
+    from ...core.all_functions import *
+except ImportError:
+    try:
+        from magic_time_studio.core.all_functions import *
+    except ImportError:
+        pass
 
 class MenuHandlersMixin:
     """Mixin voor menu handler functionaliteit"""
@@ -56,9 +71,6 @@ class MenuHandlersMixin:
         
         start_action = processing_menu.addAction("▶️ Start verwerking")
         start_action.triggered.connect(self.start_processing)
-        
-        stop_action = processing_menu.addAction("⏹️ Stop verwerking")
-        stop_action.triggered.connect(self.stop_processing)
         
         # Configuratie menu
         config_menu = menubar.addMenu("Configuratie")
@@ -190,20 +202,30 @@ class MenuHandlersMixin:
         try:
             # Import performance tracker
             try:
-                from models.performance_tracker import performance_tracker
+                from ...models.performance_tracker import performance_tracker
             except ImportError:
-                performance_tracker = None
+                try:
+                    from magic_time_studio.models.performance_tracker import performance_tracker
+                except ImportError:
+                    performance_tracker = None
             
-            # Import diagnostics
+            # Import diagnostiek functies
             try:
-                from core.diagnostics import whisper_diagnose
+                from ...core.diagnostics import run_full_diagnostics, print_diagnostics
             except ImportError:
-                whisper_diagnose = None
+                try:
+                    from magic_time_studio.core.diagnostics import run_full_diagnostics, print_diagnostics
+                except ImportError:
+                    run_full_diagnostics = None
+                    print_diagnostics = None
             
             try:
-                from core.diagnostics import cuda_test
+                from ...core.diagnostics import cuda_test
             except ImportError:
-                cuda_test = None
+                try:
+                    from magic_time_studio.core.diagnostics import cuda_test
+                except ImportError:
+                    cuda_test = None
 
             if performance_tracker:
                 performance_tracker.start_tracking()
@@ -211,8 +233,8 @@ class MenuHandlersMixin:
                 time.sleep(2)
                 report = performance_tracker.generate_report()
                 whisper_status = f"""
-Whisper Model: {'Geladen' if whisper_diagnose.is_model_loaded() else 'Niet geladen'}
-Whisper Type: {whisper_diagnose.get_current_whisper_type()}
+Whisper Model: {'Geladen' if hasattr(self, 'whisper_manager') and self.whisper_manager else 'Niet geladen'}
+Whisper Type: {'whisperx' if hasattr(self, 'whisper_manager') and self.whisper_manager else 'Niet beschikbaar'}
 """
                 report_text = report + whisper_status
                 QMessageBox.information(self, "Performance Test", report_text)
@@ -223,26 +245,95 @@ Whisper Type: {whisper_diagnose.get_current_whisper_type()}
             QMessageBox.critical(self, "Fout", f"Performance test gefaald: {e}")
     
     def whisper_diagnose(self):
-        """Whisper diagnose"""
-        print("🎤 Whisper diagnose gestart")
+        """WhisperX diagnose"""
+        print("🎤 WhisperX diagnose gestart")
         try:
-            from core.diagnostics import whisper_diagnose
-            result = whisper_diagnose()
-            QMessageBox.information(self, "Whisper Diagnose", result)
+            from ...core.diagnostics import run_full_diagnostics, print_diagnostics
+        except ImportError:
+            try:
+                from magic_time_studio.core.diagnostics import run_full_diagnostics, print_diagnostics
+            except ImportError:
+                run_full_diagnostics = None
+                print_diagnostics = None
+            
+            # Voer volledige diagnostiek uit
+            diagnostics = run_full_diagnostics()
+            
+            # Toon resultaten in een dialoog
+            from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QPushButton, QHBoxLayout
+            
+            dialog = QDialog(self.main_window)
+            dialog.setWindowTitle("Magic Time Studio Diagnostics")
+            dialog.setMinimumSize(600, 400)
+            
+            layout = QVBoxLayout(dialog)
+            
+            # Text area voor diagnostiek
+            text_edit = QTextEdit()
+            text_edit.setReadOnly(True)
+            layout.addWidget(text_edit)
+            
+            # Voeg diagnostiek toe
+            text_edit.append("🔍 Magic Time Studio Diagnostics")
+            text_edit.append("=" * 50)
+            
+            # Systeem info
+            system_info = diagnostics["system_info"]
+            text_edit.append(f"🖥️ Platform: {system_info['platform']}")
+            text_edit.append(f"🐍 Python: {system_info['python_version']}")
+            text_edit.append(f"💻 Processor: {system_info['processor']}")
+            
+            # WhisperX info
+            whisperx_info = diagnostics["whisperx"]
+            text_edit.append(f"\n🎤 WhisperX: {'✅ Beschikbaar' if whisperx_info['whisperx_available'] else '❌ Niet beschikbaar'}")
+            if whisperx_info['whisperx_available']:
+                text_edit.append(f"   Versie: {whisperx_info['version']}")
+                text_edit.append(f"   GPU: {'✅ Ondersteund' if whisperx_info['gpu_support'] else '❌ Niet ondersteund'}")
+                if whisperx_info['gpu_support']:
+                    text_edit.append(f"   GPU Aantal: {whisperx_info['gpu_count']}")
+                    text_edit.append(f"   GPU Naam: {whisperx_info['gpu_name']}")
+            
+            # FFmpeg info
+            ffmpeg_info = diagnostics["ffmpeg"]
+            text_edit.append(f"\n🎬 FFmpeg: {'✅ Beschikbaar' if ffmpeg_info['ffmpeg_available'] else '❌ Niet beschikbaar'}")
+            text_edit.append(f"   FFprobe: {'✅ Beschikbaar' if ffmpeg_info['ffprobe_available'] else '❌ Niet beschikbaar'}")
+            if ffmpeg_info['version']:
+                text_edit.append(f"   Versie: {ffmpeg_info['version']}")
+            
+            # Knoppen
+            button_layout = QHBoxLayout()
+            
+            close_button = QPushButton("Sluiten")
+            close_button.clicked.connect(dialog.accept)
+            button_layout.addWidget(close_button)
+            
+            copy_button = QPushButton("Kopieer naar klembord")
+            copy_button.clicked.connect(lambda: self._copy_diagnostics_to_clipboard(text_edit.toPlainText()))
+            button_layout.addWidget(copy_button)
+            
+            layout.addLayout(button_layout)
+            
+            dialog.exec()
+            
         except Exception as e:
-            print(f"❌ Fout bij Whisper diagnose: {e}")
-            QMessageBox.critical(self, "Fout", f"Whisper diagnose gefaald: {e}")
+            print(f"⚠️ Fout bij uitvoeren diagnostiek: {e}")
+            # Fallback naar console output
+            print_diagnostics()
 
     def cuda_test(self):
-        """CUDA test"""
-        print("🔧 CUDA test gestart")
+        """CUDA test (nu onderdeel van WhisperX diagnose)"""
+        print("🔧 CUDA test gestart (via WhisperX diagnose)")
+        self.whisper_diagnose()  # Gebruik de nieuwe diagnostiek
+    
+    def _copy_diagnostics_to_clipboard(self, text: str):
+        """Kopieer diagnostiek naar klembord"""
         try:
-            from core.diagnostics import cuda_test
-            result = cuda_test()
-            QMessageBox.information(self, "CUDA Test", result)
+            from PyQt6.QtWidgets import QApplication
+            clipboard = QApplication.clipboard()
+            clipboard.setText(text)
+            print("✅ Diagnostiek gekopieerd naar klembord")
         except Exception as e:
-            print(f"❌ Fout bij CUDA test: {e}")
-            QMessageBox.critical(self, "Fout", f"CUDA test gefaald: {e}")
+            print(f"⚠️ Fout bij kopiëren naar klembord: {e}")
     
     def change_theme(self, theme_name: str):
         """Verander thema"""
@@ -251,6 +342,11 @@ Whisper Type: {whisper_diagnose.get_current_whisper_type()}
     
     def show_charts_panel(self):
         """Toon/verberg charts panel"""
+        # Voorkom dat charts panel wordt verborgen tijdens verwerking
+        if hasattr(self, 'processing_active') and self.processing_active:
+            self.update_status("⚠️ Grafieken panel kan niet worden verborgen tijdens verwerking")
+            return
+        
         if "charts_panel" in self.visible_panels:
             # Panel is zichtbaar, verberg het
             self.charts_panel.hide()

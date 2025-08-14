@@ -14,9 +14,6 @@ class CleanupManager:
         
     def cleanup_on_exit(self):
         """Voer cleanup uit bij afsluiten"""
-        # Stop verwerking als actief via StopManager
-        self._stop_processing_on_exit()
-        
         # Release single instance lock
         self._release_single_instance_lock()
         
@@ -27,20 +24,7 @@ class CleanupManager:
         if self.main_app.ui_manager.app:
             self.main_app.ui_manager.app.quit()
     
-    def _stop_processing_on_exit(self):
-        """Stop verwerking bij afsluiten"""
-        if (self.main_app.processing_manager.processing_thread and 
-            hasattr(self.main_app.processing_manager.processing_thread, 'isRunning') and 
-            self.main_app.processing_manager.processing_thread.isRunning()):
-            print("🛑 Stop verwerking bij afsluiten...")
-            if self.main_app.stop_manager:
-                try:
-                    self.main_app.stop_manager.stop_all_processes()
-                    print("✅ Verwerking gestopt bij afsluiten")
-                except Exception as e:
-                    print(f"⚠️ Fout bij stoppen verwerking bij afsluiten: {e}")
-            else:
-                print("⚠️ StopManager niet geïnitialiseerd, geen verwerking gestopt bij afsluiten")
+
     
     def _release_single_instance_lock(self):
         """Release single instance lock"""

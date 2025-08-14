@@ -112,8 +112,13 @@ class InterfaceTab(QWidget):
             # UI instellingen
             default_window_size = config_manager.get("DEFAULT_WINDOW_SIZE", "Gemiddeld (1200×800)")
             self.window_size_combo.setCurrentText(default_window_size)
-            self.splitter1_spin.setValue(int(config_manager.get("SPLITTER1_POS", "300")))
-            self.splitter2_spin.setValue(int(config_manager.get("SPLITTER2_POS", "600")))
+            
+            # Splitter posities
+            splitter1_pos = config_manager.get_int("SPLITTER1_POS", 300)
+            self.splitter1_spin.setValue(splitter1_pos)
+            
+            splitter2_pos = config_manager.get_int("SPLITTER2_POS", 600)
+            self.splitter2_spin.setValue(splitter2_pos)
             
         except Exception as e:
             print(f"❌ Fout bij laden interface configuratie: {e}")

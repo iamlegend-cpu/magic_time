@@ -6,6 +6,10 @@ Gebruik:
 1. Zorg dat je in de project root directory bent
 2. Activeer je virtual environment: pyqt_venv\Scripts\activate (Windows)
 3. Start het programma: python magic_time_studio/run.py
+
+Dependencies:
+- Vereist: PyQt6, numpy
+- Optioneel: torch, whisper, librosa (voor volledige functionaliteit)
 """
 
 import sys
@@ -34,14 +38,14 @@ def check_dependencies():
     """Controleer of alle benodigde dependencies beschikbaar zijn"""
     required_packages = [
         'PyQt6',
-        'numpy',
-        'librosa'
+        'numpy'
     ]
     
     # Optionele packages die later geladen kunnen worden
     optional_packages = [
         'torch',
-        'whisper'
+        'whisper',
+        'librosa'  # Verplaatst naar optioneel
     ]
     
     missing_required = []
@@ -51,7 +55,7 @@ def check_dependencies():
     for package in required_packages:
         try:
             __import__(package)
-            # Alleen tonen als er problemen zijn
+            print(f"✅ {package} - Beschikbaar")
         except ImportError:
             missing_required.append(package)
             print(f"❌ {package} - Niet beschikbaar")
@@ -60,19 +64,25 @@ def check_dependencies():
     for package in optional_packages:
         try:
             __import__(package)
-            # Alleen tonen als er problemen zijn
+            print(f"✅ {package} - Beschikbaar")
         except ImportError:
             missing_optional.append(package)
-            # Alleen waarschuwing tonen voor optionele packages
+            print(f"⚠️  {package} - Niet beschikbaar")
     
     if missing_required:
         print(f"\n❌ Ontbrekende required packages: {', '.join(missing_required)}")
+        print("💡 Deze packages zijn essentieel om het programma te starten")
         return False
     
     if missing_optional:
         print(f"\n⚠️  Ontbrekende optionele packages: {', '.join(missing_optional)}")
-        print("💡 Deze packages zijn nodig voor whisper functionaliteit")
-        print("💡 Het programma kan starten maar whisper features werken niet")
+        if 'whisper' in missing_optional:
+            print("💡 Whisper is nodig voor transcriptie functionaliteit")
+        if 'librosa' in missing_optional:
+            print("💡 Librosa is nodig voor geavanceerde audio analyse")
+        if 'torch' in missing_optional:
+            print("💡 PyTorch is nodig voor whisper modellen")
+        print("💡 Het programma kan starten maar sommige features werken niet")
     
     return True
 
@@ -83,23 +93,27 @@ def main():
         setup_environment()
         
         # Controleer dependencies
+        print("\n🔍 Controleer dependencies...")
         if not check_dependencies():
             print("\n❌ Kan niet starten - ontbrekende dependencies")
             return 1
         
-        # Import direct in hoofdthread
-        from app_core.main_entry import main as studio_main
+        print("\n✅ Alle dependencies beschikbaar!")
+        print("🚀 Start Magic Time Studio...")
         
-        # Start de applicatie direct in hoofdthread
+        # Import en start de applicatie via main_entry
+        from app_core.main_entry import main as studio_main
         return studio_main()
         
     except ImportError as e:
         print(f"\n❌ Fout bij importeren PyQt6 modules: {e}")
         print("💡 Zorg ervoor dat alle dependencies zijn geïnstalleerd in je virtual environment")
         print("💡 Activeer je virtual environment: pyqt_venv\\Scripts\\activate")
+        print("💡 Installeer ontbrekende packages: pip install PyQt6 numpy")
         return 1
     except Exception as e:
         print(f"\n❌ Onverwachte fout: {e}")
+        print("💡 Controleer of alle bestanden aanwezig zijn")
         traceback.print_exc()
         return 1
     

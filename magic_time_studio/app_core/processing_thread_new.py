@@ -55,6 +55,8 @@ class ProcessingThread(QThread):
         if not all([self.audio_processor, self.whisper_processor, self.translation_processor, self.video_processor]):
             print("⚠️ Niet alle processing modules zijn beschikbaar")
     
+
+    
     def run(self):
         """Voer verwerking uit in aparte thread - gebruikt modulaire functies"""
         try:
@@ -91,8 +93,6 @@ class ProcessingThread(QThread):
                 if not self.is_running:
                     break
                     
-                self.status_updated.emit(f"🎬 Start verwerking: {file_path}")
-                
                 # Update progress voor dit bestand
                 file_progress = (i / total_files) * 100
                 progress_message = f"Bestand {i+1} van {total_files}: {os.path.basename(file_path)}"
@@ -103,6 +103,8 @@ class ProcessingThread(QThread):
                 try:
                     # Stap 1: Audio extractie (gebruikt modulaire functie)
                     print(f"🔍 [DEBUG] ProcessingThread: Start stap 1 - Audio extractie")
+                    self.status_updated.emit(f"🎵 Audio extractie gestart: {os.path.basename(file_path)}")
+                    self.progress_updated.emit(10.0, f"🎵 Audio extractie...")
                     
                     # Geef instellingen door aan audio processor
                     if hasattr(self, 'settings') and self.settings:
@@ -114,7 +116,19 @@ class ProcessingThread(QThread):
                         print(f"🔍 [DEBUG] ProcessingThread: Audio extractie gefaald")
                         continue
                     
+                    # Controleer of audio bestand nog bestaat en wacht even
+                    import time
+                    time.sleep(0.5)  # Wacht 0.5 seconde om zeker te zijn dat bestand is geschreven
+                    
+                    if not os.path.exists(audio_path):
+                        print(f"❌ Audio bestand verdwenen na extractie: {audio_path}")
+                        continue
+                    
                     print(f"🔍 [DEBUG] ProcessingThread: Audio extractie voltooid: {audio_path}")
+                    print(f"🔍 [DEBUG] ProcessingThread: Audio bestand grootte: {os.path.getsize(audio_path)} bytes")
+                    
+                    # Update progress na audio extractie (geen dubbele status update)
+                    self.progress_updated.emit(25.0, f"✅ Audio extractie voltooid: {os.path.basename(file_path)}")
                     
                     # Check of verwerking gestopt moet worden
                     if not self.is_running:
@@ -129,11 +143,11 @@ class ProcessingThread(QThread):
                         print(f"🔍 [DEBUG] ProcessingThread: Geef instellingen door aan whisper processor: {self.settings}")
                         self.whisper_processor.set_settings(self.settings)
                     
-                    # Update status voor whisper transcriptie
-                    self.status_updated.emit(f"🎤 Start Whisper transcriptie: {os.path.basename(file_path)}")
-                    self.progress_updated.emit(50.0, f"🎤 Whisper transcriptie gestart...")
+                    # Update status voor whisper transcriptie (geen dubbele status update)
+                    self.progress_updated.emit(30.0, f"🎤 Whisper transcriptie gestart...")
                     
-                    whisper_result = self.whisper_processor.transcribe_audio(audio_path, file_path)
+                    # Geef de settings door aan transcribe_audio
+                    whisper_result = self.whisper_processor.transcribe_audio(audio_path, self.settings)
                     if not whisper_result:
                         print(f"🔍 [DEBUG] ProcessingThread: Whisper transcriptie gefaald")
                         continue
@@ -141,9 +155,8 @@ class ProcessingThread(QThread):
                     print(f"🔍 [DEBUG] ProcessingThread: Whisper transcriptie voltooid")
                     print(f"🔍 [DEBUG] ProcessingThread: whisper_result type: {type(whisper_result)}")
                     
-                    # Update progress na transcriptie
+                    # Update progress na transcriptie (geen dubbele status update)
                     self.progress_updated.emit(65.0, f"✅ Whisper transcriptie voltooid: {os.path.basename(file_path)}")
-                    self.status_updated.emit(f"✅ Whisper transcriptie voltooid: {os.path.basename(file_path)}")
                     
                     transcript = whisper_result.get("transcript", "")
                     
@@ -193,6 +206,9 @@ class ProcessingThread(QThread):
                     
                     if translator_enabled:
                         print(f"🔍 [DEBUG] ProcessingThread: Vertaling stap wordt uitgevoerd!")
+                        self.status_updated.emit(f"🌐 Start vertaling: {os.path.basename(file_path)}")
+                        self.progress_updated.emit(70.0, f"🌐 Vertaling...")
+                        
                         try:
                             # Geef instellingen door aan translation processor
                             if hasattr(self, 'settings') and self.settings:
@@ -204,15 +220,21 @@ class ProcessingThread(QThread):
                             )
                             print(f"🔍 [DEBUG] ProcessingThread: Vertaling voltooid")
                             print(f"🔍 [DEBUG] ProcessingThread: translated_transcriptions type: {type(translated_transcriptions)}, count: {len(translated_transcriptions) if translated_transcriptions else 0}")
+                            
+                            self.progress_updated.emit(75.0, f"✅ Vertaling voltooid: {os.path.basename(file_path)}")
+                            self.status_updated.emit(f"✅ Vertaling voltooid: {os.path.basename(file_path)}")
+                            
                         except Exception as e:
                             print(f"🔍 [DEBUG] ProcessingThread: Vertaling gefaald: {e}")
                             import traceback
                             print(f"🔍 [DEBUG] ProcessingThread: Vertaling traceback: {traceback.format_exc()}")
                             # Gebruik originele transcriptie als vertaling faalt
                             translated_transcriptions = transcriptions
+                            self.status_updated.emit(f"⚠️ Vertaling gefaald, gebruik originele transcriptie")
                     else:
                         print(f"🔍 [DEBUG] ProcessingThread: Vertaling uitgeschakeld, gebruik originele transcriptie")
                         translated_transcriptions = transcriptions
+                        self.progress_updated.emit(75.0, f"⏭️ Vertaling overgeslagen: {os.path.basename(file_path)}")
                     
                     # Check of verwerking gestopt moet worden
                     if not self.is_running:
@@ -222,6 +244,9 @@ class ProcessingThread(QThread):
                     # Stap 4: Video verwerking (gebruikt modulaire functie)
                     print(f"🔍 [DEBUG] ProcessingThread: Start stap 4 - Video verwerking")
                     print(f"🔍 [DEBUG] ProcessingThread: Memory check - transcriptions count: {len(transcriptions) if transcriptions else 0}")
+                    
+                    self.status_updated.emit(f"🎬 Start video verwerking: {os.path.basename(file_path)}")
+                    self.progress_updated.emit(80.0, f"🎬 Video verwerking...")
                     
                     # Memory check
                     try:
@@ -243,6 +268,10 @@ class ProcessingThread(QThread):
                             file_path, transcript, transcriptions, translated_transcriptions
                         )
                         print(f"🔍 [DEBUG] ProcessingThread: Video verwerking voltooid")
+                        
+                        self.progress_updated.emit(90.0, f"✅ Video verwerking voltooid: {os.path.basename(file_path)}")
+                        self.status_updated.emit(f"✅ Video verwerking voltooid: {os.path.basename(file_path)}")
+                        
                     except Exception as e:
                         print(f"🔍 [DEBUG] ProcessingThread: CRASH in video_processor.process_video: {e}")
                         print(f"🔍 [DEBUG] ProcessingThread: Exception type: {type(e)}")
@@ -259,10 +288,21 @@ class ProcessingThread(QThread):
                     
                     # Ruim tijdelijke bestanden op
                     try:
-                        if os.path.exists(audio_path):
-                            os.remove(audio_path)
+                        self.progress_updated.emit(95.0, f"🧹 Ruim tijdelijke bestanden op...")
+                        self.status_updated.emit(f"🧹 Ruim tijdelijke bestanden op: {os.path.basename(file_path)}")
+                        
+                        if self.audio_processor:
+                            self.audio_processor.cleanup_audio_by_video(file_path)
+                        else:
+                            # Fallback cleanup
+                            if os.path.exists(audio_path):
+                                os.remove(audio_path)
+                        
+                        self.progress_updated.emit(98.0, f"✅ Cleanup voltooid: {os.path.basename(file_path)}")
+                        
                     except Exception as e:
-                        pass  # Stil falen bij cleanup
+                        print(f"⚠️ Kon audio bestand niet opruimen: {e}")
+                        self.status_updated.emit(f"⚠️ Cleanup gefaald: {e}")
                     
                     completed += 1
                     self.status_updated.emit(f"✅ {file_path} voltooid")
@@ -292,13 +332,7 @@ class ProcessingThread(QThread):
             self.progress_updated.emit(100.0, "Verwerking voltooid!")
             self.processing_finished.emit()
     
-    def stop(self):
-        """Stop de verwerking"""
-        self.is_running = False
-        
-        # Wacht tot de thread stopt
-        if self.isRunning():
-            self.wait(5000)  # Wacht maximaal 5 seconden
+
     
     def set_file_list_callback(self, callback):
         """Stel een callback in om de actuele file list op te halen"""

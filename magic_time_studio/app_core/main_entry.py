@@ -1,6 +1,14 @@
 import sys
 import threading
 import time
+
+# Schakel TF32 in voordat andere modules worden geladen
+try:
+    from magic_time_studio.app_core.import_utils import setup_tf32
+    setup_tf32()
+except Exception as e:
+    print(f"⚠️ Kon TF32 niet inschakelen: {e}")
+
 from app_core.magic_time_studio_pyqt6 import MagicTimeStudioPyQt6
 from app_core.single_instance import acquire_single_instance_lock, release_single_instance_lock
 

@@ -18,8 +18,7 @@ setup(
         "librosa",
         # Torch wordt handmatig geïnstalleerd met CUDA support
         # "torch",  # Verwijderd - gebruik torch==2.5.1+cu121
-        "whisper",
-        "faster_whisper",
+        "whisperx",  # Enige ondersteunde Whisper implementatie
         "soundfile",
         "av",
         "requests",

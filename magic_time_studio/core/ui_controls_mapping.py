@@ -13,7 +13,7 @@ UI_CONTROLS_MAPPING = {
         "start_btn", "stop_btn", "progress_bar", "console_output", "log_output"
     ],
     "settings_panel": [
-        "translator_combo", "whisper_type_combo", "model_combo", "language_combo",
+        "translator_combo", "model_combo", "language_combo",
         "preserve_subtitles_combo", "vad_checkbox"
     ],
     "batch_panel": [
@@ -52,7 +52,7 @@ UI_CONTROLS_MAPPING = {
         "analysis_type_combo", "file_selector", "analyze_btn", "progress_bar", "results_widget"
     ],
     "batch_processor_plugin": [
-        "add_files_btn", "add_folder_btn", "clear_btn", "start_processing_btn", "stop_processing_btn"
+        "add_files_btn", "add_folder_btn", "clear_btn", "start_processing_btn"
     ],
     "log_viewer": [
         "clear_button", "auto_scroll_button", "log_output"

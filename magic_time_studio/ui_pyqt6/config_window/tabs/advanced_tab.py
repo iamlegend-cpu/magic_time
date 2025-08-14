@@ -87,17 +87,25 @@ class AdvancedTab(QWidget):
         """Laad configuratie"""
         try:
             # Debug instellingen
-            self.debug_mode_check.setChecked(config_manager.get("DEBUG_MODE", "false").lower() == "true")
-            self.verbose_logging_check.setChecked(config_manager.get("VERBOSE_LOGGING", "false").lower() == "true")
-            self.show_system_info_check.setChecked(config_manager.get("SHOW_SYSTEM_INFO", "false").lower() == "true")
+            debug_mode = config_manager.get_bool("DEBUG_MODE", False)
+            self.debug_mode_check.setChecked(debug_mode)
+            
+            verbose_logging = config_manager.get_bool("VERBOSE_LOGGING", False)
+            self.verbose_logging_check.setChecked(verbose_logging)
+            
+            show_system_info = config_manager.get_bool("SHOW_SYSTEM_INFO", False)
+            self.show_system_info_check.setChecked(show_system_info)
             
             # Performance instellingen
-            self.cache_size_spin.setValue(int(config_manager.get("CACHE_SIZE_MB", "1000")))
-            self.thread_pool_spin.setValue(int(config_manager.get("THREAD_POOL_SIZE", "4")))
+            cache_size = config_manager.get_int("CACHE_SIZE_MB", 1000)
+            self.cache_size_spin.setValue(cache_size)
+            
+            thread_pool_size = config_manager.get_int("THREAD_POOL_SIZE", 4)
+            self.thread_pool_spin.setValue(thread_pool_size)
             
             # Backup instellingen
-            self.auto_backup_check.setChecked(config_manager.get("AUTO_BACKUP", "false").lower() == "true")
-            self.backup_interval_spin.setValue(int(config_manager.get("BACKUP_INTERVAL_DAYS", "7")))
+            backup_interval = config_manager.get_int("BACKUP_INTERVAL_DAYS", 7)
+            self.backup_interval_spin.setValue(backup_interval)
             
         except Exception as e:
             print(f"❌ Fout bij laden geavanceerde configuratie: {e}")

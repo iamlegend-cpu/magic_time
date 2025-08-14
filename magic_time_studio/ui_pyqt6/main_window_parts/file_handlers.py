@@ -12,5 +12,6 @@ class FileHandlersMixin:
     # on_files_dropped methode verwijderd - files_panel heeft eigen handler
     
     def on_file_selected(self, file_path: str):
-        """Handle bestand selectie"""
-        self.file_selected.emit(file_path) 
+        """Handle file selection"""
+        print(f"🔍 MainWindow: on_file_selected aangeroepen: {file_path}")
+        self.main_file_selected.emit(file_path) 

@@ -3,6 +3,73 @@ Import utilities voor Magic Time Studio
 Bevat veilige imports en fallback logica
 """
 
+import os
+
+def setup_tf32():
+    """Schakel TF32 in voor betere CUDA prestaties en om waarschuwingen te voorkomen"""
+    try:
+        # Stel environment variables in voordat pyannote.audio wordt geladen
+        os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
+        os.environ["CUDA_LAUNCH_BLOCKING"] = "0"
+        
+        # Schakel TF32 in via environment variables (wordt gerespecteerd door pyannote.audio)
+        os.environ["TORCH_ALLOW_TF32_CUBLAS_OVERRIDE"] = "1"
+        
+        import torch
+        if torch.cuda.is_available():
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
+            print("✅ TF32 ingeschakeld voor betere CUDA prestaties")
+            return True
+        else:
+            print("⚠️ CUDA niet beschikbaar - TF32 niet nodig")
+            return False
+    except Exception as e:
+        print(f"⚠️ Kon TF32 niet inschakelen: {e}")
+        return False
+
+def setup_ffmpeg_path():
+    """Voeg FFmpeg toe aan PATH vanuit assets directory"""
+    try:
+        # Zoek naar assets directory relatief aan dit bestand
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(os.path.dirname(current_dir))  # Ga twee niveaus omhoog
+        ffmpeg_path = os.path.join(project_root, "assets")
+        
+        print(f"🔍 Zoek FFmpeg in: {ffmpeg_path}")
+        
+        if os.path.exists(os.path.join(ffmpeg_path, "ffmpeg.exe")):
+            if ffmpeg_path not in os.environ.get("PATH", ""):
+                os.environ["PATH"] = ffmpeg_path + os.pathsep + os.environ.get("PATH", "")
+                print(f"🔧 FFmpeg toegevoegd aan PATH: {ffmpeg_path}")
+                return True
+            else:
+                print(f"✅ FFmpeg al beschikbaar in PATH: {ffmpeg_path}")
+                return True
+        else:
+            print(f"⚠️ FFmpeg niet gevonden in: {ffmpeg_path}")
+            # Probeer alternatieve locaties
+            alt_paths = [
+                os.path.join(project_root, "magic_time_studio", "assets"),
+                os.path.join(os.getcwd(), "assets"),
+                "assets"
+            ]
+            
+            for alt_path in alt_paths:
+                if os.path.exists(os.path.join(alt_path, "ffmpeg.exe")):
+                    if alt_path not in os.environ.get("PATH", ""):
+                        os.environ["PATH"] = alt_path + os.pathsep + os.environ.get("PATH", "")
+                        print(f"🔧 FFmpeg toegevoegd aan PATH via alternatief pad: {alt_path}")
+                        return True
+                    else:
+                        print(f"✅ FFmpeg al beschikbaar in PATH via alternatief pad: {alt_path}")
+                        return True
+            
+            return False
+    except Exception as e:
+        print(f"⚠️ Fout bij instellen FFmpeg PATH: {e}")
+        return False
+
 # Import processing modules
 try:
     from magic_time_studio.core import all_functions

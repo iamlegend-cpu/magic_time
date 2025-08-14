@@ -1,125 +1,63 @@
 """
-Alle functies voor Magic Time Studio
-Dit bestand brengt alle functionaliteit samen in één overzicht
+Alle functies importeren voor Magic Time Studio
+Alleen WhisperX wordt ondersteund
 """
 
-# Import alle functie modules
-from .audio_functions import *
-from .video_functions import *
-from .whisper_functions import *
-from .translation_functions import *
-from .subtitle_functions import *
+# Import alle core functies
+from . import file_functions
+from . import file_operations
+from . import file_search
+from . import file_utilities
+from . import file_validation
+from . import file_info
+from . import audio_functions
+from . import video_functions
+from . import subtitle_functions
+from . import translation_functions
+from . import whisper_functions
+from . import utils
+from . import logging
+from . import config
+from . import stop_manager
 
-# Import bestand functies uit de nieuwe gesplitste modules
-from .file_validation import (
-    is_video_file, is_audio_file, is_subtitle_file, get_file_type,
-    validate_file_exists, validate_file_readable, validate_file_writable,
-    VIDEO_EXTENSIONS, AUDIO_EXTENSIONS, SUBTITLE_EXTENSIONS
-)
-from .file_info import (
-    get_file_info, get_file_size_formatted, get_file_hash, get_relative_path
-)
-from .file_operations import (
-    copy_file, move_file, delete_file, delete_directory, rename_file, ensure_directory_exists
-)
-from .file_search import (
-    get_directory_files, get_video_files, get_audio_files, 
-    get_subtitle_files, find_files_by_pattern
-)
-from .file_utilities import (
-    create_temp_file, create_temp_directory, compare_files, backup_file, restore_backup
-)
-
-# Maak alle functies beschikbaar
+# Export alle beschikbare functies
 __all__ = [
-    # Audio functies
-    'extract_audio_from_video',
-    'get_audio_duration',
-    'convert_audio_format',
-    'normalize_audio',
-    'split_audio_by_silence',
+    # File functies
+    'file_functions',
+    'file_operations', 
+    'file_search',
+    'file_utilities',
+    'file_validation',
+    'file_info',
     
-    # Video functies
-    'get_video_info',
-    'get_video_duration',
-    'get_video_resolution',
-    'extract_video_frame',
-    'create_video_thumbnail',
-    'merge_video_audio',
-    'convert_video_format',
-    'compress_video',
+    # Media functies
+    'audio_functions',
+    'video_functions',
+    'subtitle_functions',
+    'translation_functions',
     
-    # Whisper functies
-    'load_whisper_model',
-    'transcribe_audio_fast_whisper',
-    'transcribe_audio_standard_whisper',
-    'detect_language',
-    'transcribe_with_timestamps',
-    'save_transcription_to_srt',
-    'format_timestamp',
-    'get_whisper_model_info',
+    # WhisperX functies
+    'whisper_functions',
     
-    # Vertaling functies
-    'translate_text_libretranslate',
-    'translate_text_google',
-    'translate_text_deepl',
-    'translate_text',
-    'translate_transcriptions',
-    'batch_translate_texts',
-    'detect_language_from_text',
-    'get_supported_languages',
-    'validate_language_code',
-    'get_language_name',
-    
-    # Ondertitel functies
-    'create_srt_content',
-    'create_vtt_content',
-    'create_ass_content',
-    'format_timestamp',
-    'format_vtt_timestamp',
-    'format_ass_timestamp',
-    'escape_ass_text',
-    'merge_subtitle_files',
-    'read_subtitle_file',
-    'read_srt_file',
-    'read_vtt_file',
-    'read_ass_file',
-    
-    # Bestand functies
-    'is_video_file',
-    'is_audio_file',
-    'is_subtitle_file',
-    'get_file_type',
-    'validate_file_exists',
-    'validate_file_readable',
-    'validate_file_writable',
-    'VIDEO_EXTENSIONS',
-    'AUDIO_EXTENSIONS',
-    'SUBTITLE_EXTENSIONS',
-    'get_file_info',
-    'get_file_size_formatted',
-    'get_file_hash',
-    'get_relative_path',
-    'copy_file',
-    'move_file',
-    'delete_file',
-    'delete_directory',
-    'rename_file',
-    'ensure_directory_exists',
-    'get_directory_files',
-    'get_video_files',
-    'get_audio_files',
-    'get_subtitle_files',
-    'find_files_by_pattern',
-    'create_temp_file',
-    'create_temp_directory',
-    'compare_files',
-    'backup_file',
-    'restore_backup'
+    # Utility functies
+    'utils',
+    'logging',
+    'config',
+    'stop_manager',
 ]
 
-# Debug: toon alle beschikbare functies
-if __name__ == "__main__":
-    print("🔍 Beschikbare functies in all_functions:")
-    for func in __all__:
-        print(f"  - {func}")
+# WhisperX specifieke functies
+from .whisper_functions import (
+    load_whisperx_model,
+    transcribe_audio_whisperx,
+    get_model_info,
+    transcribe_with_fallback
+)
+
+# Export WhisperX functies direct
+__all__.extend([
+    'load_whisperx_model',
+    'transcribe_audio_whisperx', 
+    'get_model_info',
+    'transcribe_with_fallback'
+])

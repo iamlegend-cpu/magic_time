@@ -14,6 +14,7 @@ possible_ffmpeg_paths = [
     os.path.join(os.path.dirname(__file__), '..', 'assets', 'ffmpeg.exe'),
     os.path.join(os.getcwd(), 'assets', 'ffmpeg.exe'),
     'assets/ffmpeg.exe',
+    os.path.abspath('assets/ffmpeg.exe'),
 ]
 
 for ffmpeg_path in possible_ffmpeg_paths:
@@ -23,6 +24,12 @@ for ffmpeg_path in possible_ffmpeg_paths:
         break
 else:
     print("⚠️ FFmpeg niet gevonden in assets directory")
+    # Probeer relatieve paden
+    for ffmpeg_path in ['assets/ffmpeg.exe', 'ffmpeg.exe']:
+        if os.path.exists(ffmpeg_path):
+            print(f"✅ FFmpeg gevonden via relatieve pad: {ffmpeg_path}")
+            binaries.append((ffmpeg_path, '.'))
+            break
 
 # Hook functie voor PyInstaller
 def hook_ffmpeg(hook_api):
@@ -33,4 +40,11 @@ def hook_ffmpeg(hook_api):
             print(f"✅ FFmpeg toegevoegd aan bundle: {ffmpeg_path}")
             break
     else:
-        print("⚠️ FFmpeg niet gevonden voor bundle") 
+        # Probeer relatieve paden
+        for ffmpeg_path in ['assets/ffmpeg.exe', 'ffmpeg.exe']:
+            if os.path.exists(ffmpeg_path):
+                hook_api.add_binaries([(ffmpeg_path, '.')])
+                print(f"✅ FFmpeg toegevoegd aan bundle via relatieve pad: {ffmpeg_path}")
+                break
+        else:
+            print("⚠️ FFmpeg niet gevonden voor bundle") 

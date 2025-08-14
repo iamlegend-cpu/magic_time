@@ -20,7 +20,7 @@ class RealTimeChart(QWidget):
         self.colors = {
             'cpu': QColor(76, 175, 80),      # Groen
             'memory': QColor(33, 150, 243),   # Blauw
-            'gpu': QColor(156, 39, 176),      # Paars
+            'gpu': QColor(255, 152, 0),       # Oranje
             'progress': QColor(255, 193, 7),  # Geel
             'error': QColor(244, 67, 54),     # Rood
             'temperature': QColor(255, 87, 34) # Oranje

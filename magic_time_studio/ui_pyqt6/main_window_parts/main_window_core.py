@@ -31,13 +31,13 @@ class MainWindow(
 ):
     """PyQt6 Hoofdvenster van Magic Time Studio"""
     
-    # Signals
-    processing_started = pyqtSignal(list, dict)  # files, settings
-    processing_stopped = pyqtSignal()
-    file_selected = pyqtSignal(str)
+    # Signals - must be class attributes in PyQt6, renamed to avoid conflicts
+    main_processing_started = pyqtSignal(list, dict)  # files, settings
+    main_file_selected = pyqtSignal(str)
     
     def __init__(self):
         super().__init__()
+        
         self.theme_manager = ThemeManager()
         self.modern_styling = ModernStyling()
         self.processing_active = False
@@ -49,10 +49,9 @@ class MainWindow(
         self.create_main_interface()
         self.create_status_bar()
         self.setup_timers()
-        self.setup_connections()
         
-        # Pas moderne styling toe
-        self.theme_manager.apply_theme(QApplication.instance(), "dark")
+        # Setup connections after panels are created
+        self.setup_connections()
         
         print("🏠 PyQt6 Hoofdvenster aangemaakt")
     

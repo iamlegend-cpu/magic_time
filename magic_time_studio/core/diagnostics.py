@@ -1,115 +1,158 @@
 """
-Diagnostische functies voor Magic Time Studio
-Bevat Whisper diagnose, CUDA test en documentatie openen
+Diagnostics voor Magic Time Studio
+Alleen WhisperX wordt ondersteund
 """
 
-import webbrowser
-# Import processing modules
-from .all_functions import *
+import os
+import sys
+import platform
+import subprocess
+from typing import Dict, Any, Optional
 
-def whisper_diagnose():
-    """Geef informatie over het geladen Whisper-model"""
-    if not whisper_manager.is_model_loaded():
-        return "Whisper model is niet geladen."
-    info = whisper_manager.get_model_info()
-    if 'error' in info:
-        return f"Fout: {info['error']}"
-    return (
-        f"Whisper model: {info.get('model_name', 'onbekend')}\n"
-        f"Model size: {info.get('model_size', 'onbekend')}\n"
-        f"Device: {info.get('device', 'onbekend')}\n"
-        f"Multilingual: {'Ja' if info.get('is_multilingual') else 'Nee'}"
-    )
+def get_system_info() -> Dict[str, Any]:
+    """Krijg systeem informatie"""
+    return {
+        "platform": platform.platform(),
+        "python_version": sys.version,
+        "python_executable": sys.executable,
+        "architecture": platform.architecture(),
+        "processor": platform.processor(),
+        "machine": platform.machine()
+    }
 
-def cuda_test():
-    """Test of CUDA beschikbaar is voor Whisper (PyTorch)"""
+def get_python_packages() -> Dict[str, str]:
+    """Krijg geïnstalleerde Python packages"""
     try:
-        import torch
-        cuda_available = torch.cuda.is_available()
-        device_count = torch.cuda.device_count() if cuda_available else 0
-        device_name = torch.cuda.get_device_name(0) if cuda_available and device_count > 0 else 'n.v.t.'
-        return (
-            f"CUDA beschikbaar: {'Ja' if cuda_available else 'Nee'}\n"
-            f"Aantal CUDA devices: {device_count}\n"
-            f"Device naam: {device_name}"
+        import pkg_resources
+        installed_packages = {}
+        for dist in pkg_resources.working_set:
+            installed_packages[dist.project_name] = dist.version
+        return installed_packages
+    except ImportError:
+        return {"error": "pkg_resources niet beschikbaar"}
+
+def check_whisperx_installation() -> Dict[str, Any]:
+    """Controleer WhisperX installatie"""
+    result = {
+        "whisperx_available": False,
+        "version": None,
+        "gpu_support": False,
+        "models_available": []
+    }
+    
+    try:
+        import whisperx
+        result["whisperx_available"] = True
+        
+        # Probeer versie te bepalen
+        try:
+            result["version"] = whisperx.__version__
+        except AttributeError:
+            result["version"] = "onbekend"
+        
+        # Controleer GPU ondersteuning
+        try:
+            import torch
+            if torch.cuda.is_available():
+                result["gpu_support"] = True
+                result["gpu_count"] = torch.cuda.device_count()
+                result["gpu_name"] = torch.cuda.get_device_name(0) if result["gpu_count"] > 0 else "geen"
+        except ImportError:
+            result["gpu_support"] = False
+            result["gpu_error"] = "PyTorch niet beschikbaar"
+        
+        # Controleer beschikbare modellen
+        try:
+            # Test of we een klein model kunnen laden
+            model = whisperx.load_model("tiny", device="cpu")
+            result["models_available"].append("tiny")
+            del model  # Ruim geheugen op
+        except Exception as e:
+            result["model_error"] = str(e)
+            
+    except ImportError as e:
+        result["error"] = f"WhisperX niet geïnstalleerd: {e}"
+    except Exception as e:
+        result["error"] = f"Fout bij controleren WhisperX: {e}"
+    
+    return result
+
+def check_ffmpeg() -> Dict[str, Any]:
+    """Controleer FFmpeg installatie"""
+    result = {
+        "ffmpeg_available": False,
+        "ffprobe_available": False,
+        "version": None
+    }
+    
+    try:
+        # Controleer FFmpeg
+        result_ffmpeg = subprocess.run(
+            ["ffmpeg", "-version"], 
+            capture_output=True, 
+            text=True, 
+            timeout=10
         )
-    except ImportError:
-        return "PyTorch is niet geïnstalleerd."
-    except Exception as e:
-        return f"Fout bij CUDA test: {e}"
+        if result_ffmpeg.returncode == 0:
+            result["ffmpeg_available"] = True
+            # Haal versie uit output
+            version_line = result_ffmpeg.stdout.split('\n')[0]
+            if "ffmpeg version" in version_line:
+                result["version"] = version_line.split("ffmpeg version ")[1].split(" ")[0]
+    except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
+        pass
+    
+    try:
+        # Controleer FFprobe
+        result_ffprobe = subprocess.run(
+            ["ffprobe", "-version"], 
+            capture_output=True, 
+            text=True, 
+            timeout=10
+        )
+        if result_ffprobe.returncode == 0:
+            result["ffprobe_available"] = True
+    except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
+        pass
+    
+    return result
 
-def open_documentatie():
-    """Open de online documentatie in de browser"""
-    url = "https://github.com/magic-time-studio/magic_time_studio/wiki"
-    try:
-        webbrowser.open(url)
-        return f"Documentatie geopend: {url}"
-    except Exception as e:
-        return f"Kon documentatie niet openen: {e}"
+def run_full_diagnostics() -> Dict[str, Any]:
+    """Voer volledige diagnostiek uit"""
+    return {
+        "system_info": get_system_info(),
+        "python_packages": get_python_packages(),
+        "whisperx": check_whisperx_installation(),
+        "ffmpeg": check_ffmpeg()
+    }
 
-def check_system_requirements():
-    """Controleer systeem vereisten"""
-    print("🔍 Systeem vereisten controle...")
+def print_diagnostics():
+    """Print diagnostiek informatie naar console"""
+    print("🔍 Magic Time Studio Diagnostics")
+    print("=" * 50)
     
-    # Python versie
-    import sys
-    python_version = sys.version_info
-    print(f"🐍 Python: {python_version.major}.{python_version.minor}.{python_version.micro}")
+    # Systeem info
+    system_info = get_system_info()
+    print(f"🖥️ Platform: {system_info['platform']}")
+    print(f"🐍 Python: {system_info['python_version']}")
+    print(f"💻 Processor: {system_info['processor']}")
     
-    # Platform
-    print(f"💻 Platform: {sys.platform}")
+    # WhisperX info
+    whisperx_info = check_whisperx_installation()
+    print(f"\n🎤 WhisperX: {'✅ Beschikbaar' if whisperx_info['whisperx_available'] else '❌ Niet beschikbaar'}")
+    if whisperx_info['whisperx_available']:
+        print(f"   Versie: {whisperx_info['version']}")
+        print(f"   GPU: {'✅ Ondersteund' if whisperx_info['gpu_support'] else '❌ Niet ondersteund'}")
+        if whisperx_info['gpu_support']:
+            print(f"   GPU Aantal: {whisperx_info['gpu_count']}")
+            print(f"   GPU Naam: {whisperx_info['gpu_name']}")
     
-    # PyInstaller status
-    if hasattr(sys, '_MEIPASS'):
-        print("📦 PyInstaller: Gedetecteerd (bundled executable)")
-    else:
-        print("📦 PyInstaller: Niet gedetecteerd (normale Python omgeving)")
-    
-    # Controleer optionele packages
-    optional_packages = []
-    
-    try:
-        import torch
-        print("✅ PyTorch: Beschikbaar")
-    except ImportError:
-        print("⚠️ PyTorch: Niet beschikbaar")
-        optional_packages.append("torch")
-    
-    try:
-        import whisper
-        print("✅ Whisper: Beschikbaar")
-    except ImportError:
-        print("⚠️ Whisper: Niet beschikbaar")
-        optional_packages.append("whisper")
-    
-    try:
-        import faster_whisper
-        print("✅ Faster Whisper: Beschikbaar")
-    except ImportError:
-        print("⚠️ Faster Whisper: Niet beschikbaar")
-        optional_packages.append("faster_whisper")
-    
-    if optional_packages:
-        print(f"💡 Ontbrekende optionele packages: {', '.join(optional_packages)}")
-        print("💡 Deze packages zijn nodig voor whisper functionaliteit")
-        print("💡 Het programma kan starten maar whisper features werken niet")
-    
-    return len(optional_packages) == 0
-
-def get_project_info():
-    """Krijg project informatie"""
-    import os
-    if hasattr(sys, '_MEIPASS'):
-        # PyInstaller bundle
-        bundle_dir = sys._MEIPASS
-        print(f"📁 Project root: {bundle_dir}")
-        return bundle_dir
-    else:
-        # Normale Python omgeving
-        current_dir = os.getcwd()
-        print(f"📁 Project root: {current_dir}")
-        return current_dir
+    # FFmpeg info
+    ffmpeg_info = check_ffmpeg()
+    print(f"\n🎬 FFmpeg: {'✅ Beschikbaar' if ffmpeg_info['ffmpeg_available'] else '❌ Niet beschikbaar'}")
+    print(f"   FFprobe: {'✅ Beschikbaar' if ffmpeg_info['ffprobe_available'] else '❌ Niet beschikbaar'}")
+    if ffmpeg_info['version']:
+        print(f"   Versie: {ffmpeg_info['version']}")
 
 if __name__ == "__main__":
-    check_system_requirements()
-    get_project_info() 
+    print_diagnostics() 

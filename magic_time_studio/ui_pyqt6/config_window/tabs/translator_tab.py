@@ -94,9 +94,15 @@ class TranslatorTab(QWidget):
                 print(f"🌐 Geen LibreTranslate server ingesteld, gebruik standaard: {server_url}")
             
             self.server_edit.setText(server_url)
-            self.timeout_spin.setValue(int(config_manager.get("LIBRETRANSLATE_TIMEOUT", "30")))
-            self.rate_limit_spin.setValue(int(config_manager.get("LIBRETRANSLATE_RATE_LIMIT", "0")))
-            self.max_chars_spin.setValue(int(config_manager.get("LIBRETRANSLATE_MAX_CHARS", "100000")))
+            # Timeout en rate limiting
+            timeout = config_manager.get_int("LIBRETRANSLATE_TIMEOUT", 30)
+            self.timeout_spin.setValue(timeout)
+            
+            rate_limit = config_manager.get_int("LIBRETRANSLATE_RATE_LIMIT", 0)
+            self.rate_limit_spin.setValue(rate_limit)
+            
+            max_chars = config_manager.get_int("LIBRETRANSLATE_MAX_CHARS", 100000)
+            self.max_chars_spin.setValue(max_chars)
             
             # Toon status van server instelling
             if server_url == "https://translate.argosopentech.com":

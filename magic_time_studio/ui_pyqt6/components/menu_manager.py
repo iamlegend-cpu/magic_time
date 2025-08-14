@@ -16,7 +16,7 @@ class MenuManager(QObject):
     remove_selected_triggered = pyqtSignal()
     clear_list_triggered = pyqtSignal()
     start_processing_triggered = pyqtSignal()
-    stop_processing_triggered = pyqtSignal()
+
     show_config_triggered = pyqtSignal()
     show_log_triggered = pyqtSignal()
     performance_test_triggered = pyqtSignal()
@@ -90,12 +90,6 @@ class MenuManager(QObject):
         start_action.setShortcut("F5")
         start_action.triggered.connect(self.start_processing_triggered.emit)
         processing_menu.addAction(start_action)
-        
-        # Stop verwerking
-        stop_action = QAction("Stop verwerking", self.main_window)
-        stop_action.setShortcut("F6")
-        stop_action.triggered.connect(self.stop_processing_triggered.emit)
-        processing_menu.addAction(stop_action)
     
     def create_view_menu(self):
         """Maak het Beeld menu"""

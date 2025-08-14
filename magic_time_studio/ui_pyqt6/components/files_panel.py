@@ -114,7 +114,7 @@ class FilesPanel(QWidget):
         self.model_name_label.setStyleSheet("color: #888888;")
         model_layout.addRow("Model:", self.model_name_label)
         
-        self.language_label = QLabel("Auto detectie")
+        self.language_label = QLabel("Engels")
         model_layout.addRow("Taal:", self.language_label)
         
         self.translator_label = QLabel("Geen vertaling")

@@ -6,14 +6,19 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QPalette, QColor
 from PyQt6.QtCore import Qt
 from typing import Dict, Any, Optional
+
 # Lazy import van config_manager om circulaire import te voorkomen
 def _get_config_manager():
     """Lazy config manager import om circulaire import te voorkomen"""
     try:
-        from core.config import config_manager
+        from ..core.config import config_manager
         return config_manager
     except ImportError:
-        return None
+        try:
+            from magic_time_studio.core.config import config_manager
+            return config_manager
+        except ImportError:
+            return None
 
 class ThemeManager:
     """Beheert thema's en styling voor de PyQt6 UI"""

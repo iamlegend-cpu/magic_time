@@ -11,8 +11,11 @@ datas = [
     ('magic_time_studio/ui_pyqt6', 'magic_time_studio/ui_pyqt6'),
     ('magic_time_studio/models', 'magic_time_studio/models'),
     
-    # Assets
+    # Assets (inclusief FFmpeg)
     ('assets', 'assets'),
+    
+    # FFmpeg executables expliciet toevoegen
+    ('assets/ffmpeg.exe', '.'),
     
     # Config bestanden
     ('magic_time_studio/whisper_config.env', 'magic_time_studio'),
@@ -127,6 +130,8 @@ a = Analysis(
     cipher=block_cipher,
     noarchive=False,
     datas_excludes=['**/test*', '**/tests*', '**/doc*', '**/docs*', '**/__pycache__*', '**/*.pyc'],
+    # FFmpeg hook configuratie
+    hookspath_ignore_missing=True,
 )
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)

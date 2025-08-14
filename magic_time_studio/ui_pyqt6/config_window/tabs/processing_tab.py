@@ -128,15 +128,15 @@ class ProcessingTab(QWidget):
             self.device_combo.setCurrentText(device)
             
             # Worker count
-            workers = config_manager.get("worker_count", 4)
+            workers = config_manager.get_int("worker_count", 4)
             self.workers_spin.setValue(workers)
             
             # CPU limiet
-            cpu_limit = config_manager.get("cpu_limit_percentage", 80)
+            cpu_limit = config_manager.get_int("cpu_limit_percentage", 80)
             self.cpu_limit_spin.setValue(cpu_limit)
             
             # Memory limiet
-            memory_mb = config_manager.get("memory_limit_mb", 8192)
+            memory_mb = config_manager.get_int("memory_limit_mb", 8192)
             memory_text = self._get_memory_display_text(memory_mb)
             self.memory_limit_combo.setCurrentText(memory_text)
             

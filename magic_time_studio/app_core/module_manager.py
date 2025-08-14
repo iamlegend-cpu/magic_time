@@ -57,11 +57,9 @@ class ModuleManager:
         """Initialiseer Whisper Manager veilig"""
         if self.main_app.whisper_manager and self.main_app.config_manager:
             try:
-                default_whisper_type = self.main_app.config_manager.get_env("WHISPER_TYPE", "fast")
-                if default_whisper_type == "fast":
-                    default_model = self.main_app.config_manager.get_env("DEFAULT_FAST_WHISPER_MODEL", "large-v3-turbo")
-                else:
-                    default_model = self.main_app.config_manager.get_env("DEFAULT_WHISPER_MODEL", "large")
+                # Alleen WhisperX wordt ondersteund
+                default_whisper_type = "whisperx"
+                default_model = self.main_app.config_manager.get_env("DEFAULT_WHISPERX_MODEL", "large-v3")
                 
                 print(f"[DEBUG] Gekozen Whisper type: {default_whisper_type}, model: {default_model}")
                 

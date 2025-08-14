@@ -4,7 +4,7 @@ Panels module voor Magic Time Studio
 
 from .settings_panel_wrapper import SettingsPanelWrapper
 from .files_panel import FilesPanel
-from .components.processing_panel import ProcessingPanel
+from .processing_panel import ProcessingPanel
 from .charts_panel import ChartsPanel
 from .batch_panel import BatchPanel
 

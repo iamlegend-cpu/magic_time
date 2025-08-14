@@ -1,89 +1,47 @@
 """
-Magic Time Studio App Core Module
-Bevat alle core applicatie functionaliteit
+Magic Time Studio App Core
+Beheert de kern functionaliteit van de applicatie
 """
 
-# Import alle app_core modules - alleen als beschikbaar
-try:
-    from . import main_entry
-except ImportError:
-    pass
+# Import core modules
+from . import import_utils
+from . import module_manager
+from . import processing_manager
+from . import ui_manager
+from . import theme_manager
+from . import cleanup_manager
+from . import file_handler
+from . import single_instance
 
-try:
-    from . import magic_time_studio_pyqt6
-except ImportError:
-    pass
+# Import WhisperX modules
+from . import whisperx_core
+from . import whisperx_vad
+from . import whisperx_time_estimator
+from . import whisperx_utils
+from . import whisperx_processor
 
-try:
-    from . import processing_manager
-except ImportError:
-    pass
+# Import processing modules
+from . import processing_modules
 
-try:
-    from . import processing_thread_new
-except ImportError:
-    pass
+# Import main entry point
+from . import main_entry
 
-try:
-    from . import whisper_manager
-except ImportError:
-    pass
-
-try:
-    from . import fast_whisper
-except ImportError:
-    pass
-
-try:
-    from . import standard_whisper
-except ImportError:
-    pass
-
-try:
-    from . import cleanup_manager
-except ImportError:
-    pass
-
-try:
-    from . import file_handler
-except ImportError:
-    pass
-
-try:
-    from . import import_utils
-except ImportError:
-    pass
-
-try:
-    from . import module_manager
-except ImportError:
-    pass
-
-try:
-    from . import theme_manager
-except ImportError:
-    pass
-
-try:
-    from . import ui_manager
-except ImportError:
-    pass
-
-# Export alle modules
 __all__ = [
-    'main_entry',
-    'magic_time_studio_pyqt6',
+    'import_utils',
+    'module_manager', 
     'processing_manager',
-    'processing_thread_new',
-    'whisper_manager',
-    'fast_whisper',
-    'standard_whisper',
+    'ui_manager',
+    'theme_manager',
     'cleanup_manager',
     'file_handler',
-    'import_utils',
-    'module_manager',
-    'theme_manager',
-    'ui_manager'
+    'single_instance',
+    'whisperx_core',
+    'whisperx_vad',
+    'whisperx_time_estimator',
+    'whisperx_utils',
+    'whisperx_processor',
+    'processing_modules',
+    'main_entry'
 ]
 
 # Versie informatie

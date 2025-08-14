@@ -1,77 +1,79 @@
 """
 Whisper Manager voor Magic Time Studio
-Beheert zowel standaard Whisper als Faster Whisper
+Alleen WhisperX ondersteund - voor maximale accuracy
 """
 
 import os
-from typing import Optional, Dict, Any
-from enum import Enum
-
-class WhisperType(Enum):
-    """Whisper type enumeratie"""
-    STANDARD = "standard"
-    FAST = "fast"
+from typing import Dict, Any
 
 class WhisperManager:
-    """Centrale Whisper beheerder"""
+    """Eenvoudige Whisper Manager - alleen WhisperX ondersteund"""
     
     def __init__(self):
-        self.current_type = WhisperType.FAST
-        self.current_model = "tiny"  # Default naar tiny
+        # Alleen WhisperX ondersteund
+        self.current_type = "whisperx"
+        self.current_model = None  # Geen model geladen bij start
         self.is_initialized = False
-        self.available_models = {
-            WhisperType.STANDARD: ["tiny", "base", "small", "medium", "large", "large-v3"],
-            WhisperType.FAST: ["tiny", "base", "small", "medium", "large", "large-v3"]
-        }
-        self.available_types = ["standard", "fast"]
-        self.gpu_device = "cuda"  # Default GPU device
+        
+        # Beschikbare modellen
+        self.available_models = ["tiny", "base", "small", "medium", "large", "large-v3", "large-v3-turbo"]
+        self.available_types = ["whisperx"]  # Alleen WhisperX
+        
+        # Device instellingen
+        self.gpu_device = "cuda"  # Default GPU
         self.compute_type = "float16"  # Default compute type
     
-    def initialize(self, whisper_type: str, model: str) -> bool:
-        """Initialiseer Whisper met opgegeven type en model"""
+    def initialize(self, whisper_type: str, model: str = None) -> bool:
+        """Initialiseer WhisperX (enige optie)"""
         try:
-            # Converteer string naar enum
-            if whisper_type.lower() == "fast":
-                self.current_type = WhisperType.FAST
-            else:
-                self.current_type = WhisperType.STANDARD
+            # Controleer of het een ondersteund type is
+            if whisper_type.lower() != "whisperx":
+                print(f"❌ {whisper_type} wordt niet ondersteund. Alleen WhisperX is beschikbaar.")
+                return False
             
-            # Zorg ervoor dat het juiste model wordt gebruikt
-            if model not in self.available_models[self.current_type]:
-                print(f"⚠️ Model {model} niet beschikbaar voor {whisper_type}, gebruik tiny")
-                model = "tiny"
+            # Als geen model wordt opgegeven, initialiseer alleen de basis instellingen
+            if model is None:
+                self.is_initialized = True
+                print(f"✅ WhisperX basis geïnitialiseerd (geen model geladen)")
+                
+                # Controleer GPU status
+                gpu_available = self.check_cuda_availability()
+                if gpu_available:
+                    self.gpu_device = "cuda"
+                    self.compute_type = "float16"
+                else:
+                    self.gpu_device = "cpu"
+                    self.compute_type = "float32"
+                
+                return True
+            
+            # Controleer of het model beschikbaar is
+            if model not in self.available_models:
+                print(f"⚠️ Model {model} niet beschikbaar, gebruik large-v3")
+                model = "large-v3"
             
             self.current_model = model
-            
-            # Controleer GPU status voor betere informatie
-            print("🔍 Controleer GPU status...")
-            gpu_status = self.check_gpu_status()
-            
-            # Probeer automatisch CUDA te forceren voor betere prestaties
-            if whisper_type.lower() == "fast":
-                cuda_available = self.force_cuda()
-                # CUDA status wordt niet meer getoond om spam te voorkomen
-            
             self.is_initialized = True
             
-            print(f"✅ Whisper geïnitialiseerd: {self.current_type.value} - {self.current_model}")
-            print(f"🔧 Device: {self.gpu_device}, Compute Type: {self.compute_type}")
-            
-            # Toon GPU samenvatting
-            if gpu_status["available"]:
-                print(f"🎯 GPU: {gpu_status['name']} ({gpu_status['memory_total']:.1f} GB) - {gpu_status['device'].upper()}")
+            # Controleer GPU status
+            gpu_available = self.check_cuda_availability()
+            if gpu_available:
+                self.gpu_device = "cuda"
+                self.compute_type = "float16"
             else:
-                print("⚠️ GPU: Niet beschikbaar - CPU wordt gebruikt")
+                self.gpu_device = "cpu"
+                self.compute_type = "float32"
             
+            print(f"✅ WhisperX geïnitialiseerd met model: {model}")
             return True
             
         except Exception as e:
-            print(f"❌ Fout bij initialiseren Whisper: {e}")
+            print(f"❌ Fout bij initialiseren WhisperX: {e}")
             return False
     
     def get_current_type(self) -> str:
-        """Krijg huidige Whisper type"""
-        return self.current_type.value
+        """Krijg huidige type (altijd whisperx)"""
+        return self.current_type
     
     def get_current_model(self) -> str:
         """Krijg huidige model"""
@@ -82,18 +84,11 @@ class WhisperManager:
         return self.is_initialized
     
     def get_available_models(self, whisper_type: str = None) -> list:
-        """Krijg beschikbare modellen voor opgegeven type"""
-        if whisper_type is None:
-            whisper_type = self.current_type
-        elif whisper_type.lower() == "fast":
-            whisper_type = WhisperType.FAST
-        else:
-            whisper_type = WhisperType.STANDARD
-        
-        return self.available_models.get(whisper_type, [])
+        """Krijg beschikbare modellen"""
+        return self.available_models
     
     def get_available_whisper_types(self) -> list:
-        """Krijg beschikbare Whisper types"""
+        """Krijg beschikbare types (altijd alleen whisperx)"""
         return self.available_types
     
     def get_gpu_device(self) -> str:
@@ -102,25 +97,22 @@ class WhisperManager:
     
     def set_gpu_device(self, device: str) -> bool:
         """Stel GPU device in"""
-        try:
-            if device.lower() in ["cuda", "cpu"]:
-                self.gpu_device = device.lower()
-                
-                # Als CUDA wordt geselecteerd, controleer of het beschikbaar is
-                if device.lower() == "cuda":
-                    cuda_available = self.check_cuda_availability()
-                    if not cuda_available:
-                        print("⚠️ CUDA niet beschikbaar - schakel over naar CPU")
-                        self.gpu_device = "cpu"
-                        # Update compute type voor CPU
-                        self.compute_type = "float32"
-                
-                return True
+        if device.lower() in ["cuda", "cpu"]:
+            self.gpu_device = device.lower()
+            
+            # Update compute type voor CPU
+            if device.lower() == "cpu":
+                self.compute_type = "float32"
+            elif device.lower() == "cuda" and self.check_cuda_availability():
+                self.compute_type = "float16"
             else:
-                print(f"⚠️ Ongeldige device: {device}, gebruik cuda of cpu")
-                return False
-        except Exception as e:
-            print(f"❌ Fout bij instellen GPU device: {e}")
+                print("⚠️ CUDA niet beschikbaar, gebruik CPU")
+                self.gpu_device = "cpu"
+                self.compute_type = "float32"
+            
+            return True
+        else:
+            print(f"❌ Ongeldige device: {device}")
             return False
     
     def get_compute_type(self) -> str:
@@ -129,33 +121,29 @@ class WhisperManager:
     
     def set_compute_type(self, compute_type: str) -> bool:
         """Stel compute type in"""
-        try:
-            valid_types = ["float16", "float32", "int8"]
-            if compute_type.lower() in valid_types:
-                self.compute_type = compute_type.lower()
-                
-                # Als float16 wordt geselecteerd, controleer of CUDA beschikbaar is
-                if compute_type.lower() == "float16":
-                    if self.gpu_device == "cuda" and not self.check_cuda_availability():
-                        print("⚠️ float16 vereist CUDA - schakel over naar float32")
-                        self.compute_type = "float32"
-                
-                return True
-            else:
-                print(f"⚠️ Ongeldig compute type: {compute_type}, gebruik {', '.join(valid_types)}")
-                return False
-        except Exception as e:
-            print(f"❌ Fout bij instellen compute type: {e}")
+        valid_types = ["float16", "float32", "int8"]
+        if compute_type.lower() in valid_types:
+            self.compute_type = compute_type.lower()
+            
+            # Controleer of float16 mogelijk is
+            if compute_type.lower() == "float16" and not self.check_cuda_availability():
+                print("⚠️ float16 vereist CUDA, gebruik float32")
+                self.compute_type = "float32"
+            
+            return True
+        else:
+            print(f"❌ Ongeldig compute type: {compute_type}")
             return False
     
     def get_model_info(self) -> Dict[str, Any]:
         """Krijg model informatie"""
         return {
-            "type": self.current_type.value,
+            "type": self.current_type,
             "model": self.current_model,
             "is_loaded": self.is_initialized,
             "gpu_device": self.gpu_device,
-            "compute_type": self.compute_type
+            "compute_type": self.compute_type,
+            "description": "WhisperX - Enige optie voor maximale accuracy"
         }
     
     def check_cuda_availability(self) -> bool:
@@ -164,33 +152,23 @@ class WhisperManager:
             import torch
             return torch.cuda.is_available()
         except ImportError:
-            print("⚠️ PyTorch niet beschikbaar - CUDA niet beschikbaar")
             return False
-        except Exception as e:
-            print(f"⚠️ CUDA controle gefaald: {e}")
+        except Exception:
             return False
     
     def force_cuda(self) -> bool:
-        """Probeer CUDA te gebruiken als het beschikbaar is"""
-        try:
-            # Controleer of CUDA beschikbaar is
-            if self.check_cuda_availability():
-                self.gpu_device = "cuda"
-                print("✅ CUDA beschikbaar - GPU wordt gebruikt")
-                return True
-            else:
-                print("⚠️ CUDA niet beschikbaar - gebruik CPU")
-                self.gpu_device = "cpu"
-                self.compute_type = "float32"
-                return False
-        except Exception as e:
-            print(f"⚠️ CUDA forceren gefaald: {e} - gebruik CPU")
+        """Probeer CUDA te gebruiken"""
+        if self.check_cuda_availability():
+            self.gpu_device = "cuda"
+            self.compute_type = "float16"
+            return True
+        else:
             self.gpu_device = "cpu"
             self.compute_type = "float32"
             return False
     
     def check_gpu_status(self) -> Dict[str, Any]:
-        """Controleer GPU status voor monitoring panel"""
+        """Controleer GPU status"""
         try:
             gpu_info = {
                 "available": False,
@@ -203,85 +181,21 @@ class WhisperManager:
                 "temperature": 0
             }
             
-            # Probeer NVIDIA GPU via pynvml
-            try:
-                import pynvml
-                pynvml.nvmlInit()
-                device_count = pynvml.nvmlDeviceGetCount()
-                
-                if device_count > 0:
-                    handle = pynvml.nvmlDeviceGetHandleByIndex(0)
-                    name = pynvml.nvmlDeviceGetName(handle)
-                    if isinstance(name, bytes):
-                        name = name.decode('utf-8')
-                    
-                    memory_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
-                    utilization = pynvml.nvmlDeviceGetUtilizationRates(handle)
-                    
-                    # Probeer temperatuur op te halen
-                    try:
-                        temperature = pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
-                    except:
-                        temperature = 0
-                    
-                    gpu_info.update({
-                        "available": True,
-                        "device": "cuda",
-                        "name": name,
-                        "memory_total": memory_info.total / (1024**3),  # GB
-                        "memory_used": memory_info.used / (1024**3),   # GB
-                        "memory_free": memory_info.free / (1024**3),   # GB
-                        "utilization": utilization.gpu,
-                        "temperature": temperature
-                    })
-                    
-                    # NVIDIA GPU info wordt niet meer getoond om spam te voorkomen
-                    pass
-                    
-            except ImportError:
-                print("⚠️ pynvml niet beschikbaar, gebruik PyTorch fallback")
-            except Exception as e:
-                print(f"⚠️ Fout bij pynvml: {e}")
-            
-            # Fallback naar PyTorch CUDA
-            if not gpu_info["available"]:
-                try:
-                    import torch
-                    if torch.cuda.is_available():
-                        gpu_info.update({
-                            "available": True,
-                            "device": "cuda",
-                            "name": torch.cuda.get_device_name(0),
-                            "memory_total": torch.cuda.get_device_properties(0).total_memory / (1024**3),
-                            "memory_used": (torch.cuda.get_device_properties(0).total_memory - torch.cuda.memory_reserved(0)) / (1024**3),
-                            "memory_free": torch.cuda.memory_reserved(0) / (1024**3)
-                        })
-                        
-                        # PyTorch CUDA info wordt niet meer getoond om spam te voorkomen
-                        
-                        # Probeer automatisch CUDA te forceren
-                        if self.gpu_device == "cuda":
-                            self.force_cuda()
-                    else:
-                        if not hasattr(self, '_pytorch_cuda_not_available_printed'):
-                            print("⚠️ PyTorch CUDA niet beschikbaar")
-                            self._pytorch_cuda_not_available_printed = True
-                except ImportError:
-                    if not hasattr(self, '_pytorch_import_error_printed'):
-                        print("⚠️ PyTorch niet beschikbaar")
-                        self._pytorch_import_error_printed = True
-                except Exception as e:
-                    if not hasattr(self, '_pytorch_cuda_error_printed'):
-                        print(f"⚠️ Fout bij PyTorch CUDA: {e}")
-                        self._pytorch_cuda_error_printed = True
-            
-            # GPU samenvatting wordt niet meer getoond om spam te voorkomen
-            pass
+            # Probeer PyTorch CUDA
+            if self.check_cuda_availability():
+                import torch
+                gpu_info.update({
+                    "available": True,
+                    "device": "cuda",
+                    "name": torch.cuda.get_device_name(0),
+                    "memory_total": torch.cuda.get_device_properties(0).total_memory / (1024**3),
+                    "memory_used": (torch.cuda.get_device_properties(0).total_memory - torch.cuda.memory_reserved(0)) / (1024**3),
+                    "memory_free": torch.cuda.memory_reserved(0) / (1024**3)
+                })
             
             return gpu_info
             
-        except Exception as e:
-            print(f"❌ Fout bij GPU status controle: {e}")
+        except Exception:
             return {
                 "available": False,
                 "device": "cpu",

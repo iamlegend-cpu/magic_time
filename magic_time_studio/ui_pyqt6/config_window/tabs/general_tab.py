@@ -80,9 +80,17 @@ class GeneralTab(QWidget):
         try:
             # Algemene instellingen
             self.theme_combo.setCurrentText(config_manager.get("DEFAULT_THEME", "dark"))
-            self.font_spin.setValue(int(config_manager.get("DEFAULT_FONT_SIZE", "9")))
-            self.auto_cleanup_check.setChecked(config_manager.get("AUTO_CLEANUP_TEMP", "true").lower() == "true")
-            self.auto_output_check.setChecked(config_manager.get("AUTO_CREATE_OUTPUT_DIR", "true").lower() == "true")
+            
+            # Font grootte
+            font_size = config_manager.get_int("DEFAULT_FONT_SIZE", 9)
+            self.font_spin.setValue(font_size)
+            
+            # Boolean instellingen
+            auto_cleanup = config_manager.get_bool("AUTO_CLEANUP_TEMP", True)
+            self.auto_cleanup_check.setChecked(auto_cleanup)
+            
+            auto_output = config_manager.get_bool("AUTO_CREATE_OUTPUT_DIR", True)
+            self.auto_output_check.setChecked(auto_output)
             
             # Logging
             self.log_level_combo.setCurrentText(config_manager.get("LOG_LEVEL", "INFO"))

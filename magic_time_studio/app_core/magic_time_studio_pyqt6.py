@@ -19,67 +19,97 @@ from .theme_manager import ThemeManager as AppThemeManager
 
 # Veilige imports met fallbacks
 try:
-    from magic_time_studio.core.config import config_manager
+    from ..core.config import config_manager
 except ImportError:
-    print("⚠️ config_manager niet gevonden, maak fallback aan...")
-    config_manager = None
+    try:
+        from magic_time_studio.core.config import config_manager
+    except ImportError:
+        print("⚠️ config_manager niet gevonden, maak fallback aan...")
+        config_manager = None
+
+# stop_manager verwijderd - geen stop functionaliteit meer
+stop_manager = None
 
 try:
-    from magic_time_studio.core.stop_manager import stop_manager
-except ImportError:
-    print("⚠️ stop_manager niet gevonden, maak fallback aan...")
-    stop_manager = None
-
-try:
-    from magic_time_studio.ui_pyqt6.main_window import MainWindow
+    from ..ui_pyqt6.main_window import MainWindow
     print("✅ MainWindow succesvol geïmporteerd")
 except ImportError as e:
-    print(f"⚠️ MainWindow niet gevonden: {e}")
-    print("🔍 Probeer alternatieve import...")
     try:
-        from magic_time_studio.ui_pyqt6.main_window_parts.main_window_core import MainWindow
-        print("✅ MainWindow geïmporteerd via main_window_core")
+        from magic_time_studio.ui_pyqt6.main_window import MainWindow
+        print("✅ MainWindow succesvol geïmporteerd")
     except ImportError as e2:
-        print(f"❌ Ook alternatieve import gefaald: {e2}")
-        MainWindow = None
+        print(f"⚠️ MainWindow niet gevonden: {e2}")
+        print("🔍 Probeer alternatieve import...")
+        try:
+            from ..ui_pyqt6.main_window_parts.main_window_core import MainWindow
+            print("✅ MainWindow geïmporteerd via main_window_core")
+        except ImportError as e3:
+            try:
+                from magic_time_studio.ui_pyqt6.main_window_parts.main_window_core import MainWindow
+                print("✅ MainWindow geïmporteerd via main_window_core")
+            except ImportError as e4:
+                print(f"❌ Ook alternatieve import gefaald: {e4}")
+                MainWindow = None
 
 try:
-    from magic_time_studio.ui_pyqt6.themes import ThemeManager
+    from ..ui_pyqt6.themes import ThemeManager
 except ImportError:
-    print("⚠️ ThemeManager niet gevonden, maak fallback aan...")
-    ThemeManager = None
+    try:
+        from magic_time_studio.ui_pyqt6.themes import ThemeManager
+    except ImportError:
+        print("⚠️ ThemeManager niet gevonden, maak fallback aan...")
+        ThemeManager = None
 
 # Import processing modules
 try:
-    from magic_time_studio.core.all_functions import *
+    from ..core.all_functions import *
     print("✅ All functions geladen")
 except ImportError:
-    print("⚠️ all_functions niet gevonden, maak fallback aan...")
+    try:
+        from magic_time_studio.core.all_functions import *
+        print("✅ All functions geladen")
+    except ImportError:
+        print("⚠️ all_functions niet gevonden, maak fallback aan...")
 
 # Import specifieke modules
 try:
-    from magic_time_studio.core.translation_functions import *
+    from ..core.translation_functions import *
     translator = "libretranslate"  # Default vertaler
     print("✅ Translation functions geladen")
 except ImportError:
-    print("⚠️ translation_functions niet gevonden, maak fallback aan...")
-    translator = None
+    try:
+        from magic_time_studio.core.translation_functions import *
+        translator = "libretranslate"  # Default vertaler
+        print("✅ Translation functions geladen")
+    except ImportError:
+        print("⚠️ translation_functions niet gevonden, maak fallback aan...")
+        translator = None
 
 try:
-    from magic_time_studio.core.audio_functions import *
+    from ..core.audio_functions import *
     audio_processor = "ffmpeg"  # Default audio processor
     print("✅ Audio functions geladen")
 except ImportError:
-    print("⚠️ audio_functions niet gevonden, maak fallback aan...")
-    audio_processor = None
+    try:
+        from magic_time_studio.core.audio_functions import *
+        audio_processor = "ffmpeg"  # Default audio processor
+        print("✅ Audio functions geladen")
+    except ImportError:
+        print("⚠️ audio_functions niet gevonden, maak fallback aan...")
+        audio_processor = None
 
 try:
-    from magic_time_studio.core.video_functions import *
+    from ..core.video_functions import *
     video_processor = "ffmpeg"  # Default video processor
     print("✅ Video functions geladen")
 except ImportError:
-    print("⚠️ video_functions niet gevonden, maak fallback aan...")
-    video_processor = None
+    try:
+        from magic_time_studio.core.video_functions import *
+        video_processor = "ffmpeg"  # Default video processor
+        print("✅ Video functions geladen")
+    except ImportError:
+        print("⚠️ video_functions niet gevonden, maak fallback aan...")
+        video_processor = None
 
 try:
     from .whisper_manager import whisper_manager
@@ -106,9 +136,13 @@ class MagicTimeStudioPyQt6:
     """Hoofdapplicatie klasse voor PyQt6"""
     
     def __init__(self):
+        # Voeg FFmpeg toe aan PATH vanuit assets directory
+        from .import_utils import setup_ffmpeg_path
+        setup_ffmpeg_path()
+        
         # Expose imports voor managers
         self.config_manager = config_manager
-        self.stop_manager = stop_manager
+        # self.stop_manager = stop_manager  # Verwijderd - geen stop functionaliteit meer
         self.MainWindow = MainWindow
         self.ThemeManager = ThemeManager
         self.translator = translator
@@ -136,6 +170,8 @@ class MagicTimeStudioPyQt6:
         # Initialiseer modules
         self.module_manager.initialize_modules()
     
+
+    
     def create_ui(self):
         """Maak de PyQt6 gebruikersinterface"""
         return self.ui_manager.create_ui()
@@ -148,9 +184,7 @@ class MagicTimeStudioPyQt6:
         """Start verwerking van bestanden"""
         return self.processing_manager.start_processing(files, settings)
     
-    def _on_stop_processing(self):
-        """Stop verwerking via StopManager"""
-        return self.processing_manager.stop_processing()
+
     
     def run(self):
         """Start de applicatie"""

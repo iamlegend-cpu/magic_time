@@ -7,6 +7,18 @@ import os
 import subprocess
 from typing import Optional, Dict, Any, List
 
+# Import WhisperX SRT functies voor betere accuracy
+try:
+    from magic_time_studio.core.whisperx_srt_functions import (
+        create_whisperx_srt_content,
+        validate_whisperx_transcriptions,
+        get_whisperx_statistics
+    )
+    WHISPERX_SRT_AVAILABLE = True
+except ImportError:
+    WHISPERX_SRT_AVAILABLE = False
+    print("⚠️ WhisperX SRT functies niet beschikbaar, gebruik standaard SRT generatie")
+
 class VideoProcessor:
     """Video verwerking module met FFmpeg"""
     
@@ -48,14 +60,20 @@ class VideoProcessor:
             if not srt_path:
                 return {"error": "Kon SRT bestand niet maken"}
             
-            # Maak ook SRT bestand met alleen originele tekst (zonder vertaling)
-            original_srt_path = self._create_original_srt_file(transcriptions, file_path)
-            if not original_srt_path:
-                print("⚠️ Kon origineel SRT bestand niet maken")
+            # Maak ook SRT bestand met alleen originele tekst (zonder vertaling) - alleen als preserve_subtitles is ingeschakeld
+            original_srt_path = None
+            if preserve_subtitles:
+                original_srt_path = self._create_original_srt_file(transcriptions, file_path)
+                if not original_srt_path:
+                    print("⚠️ Kon origineel SRT bestand niet maken")
+                else:
+                    print(f"✅ Origineel SRT bestand gemaakt: {original_srt_path}")
+            else:
+                print("📝 Origineel SRT bestand wordt niet gemaakt (instelling: verwijder originele SRT)")
+                # Verwijder bestaand origineel SRT bestand als het bestaat
+                self._remove_existing_original_srt(file_path)
             
             print(f"✅ SRT bestanden gemaakt: {srt_path}")
-            if original_srt_path:
-                print(f"✅ Origineel SRT bestand gemaakt: {original_srt_path}")
             
             # Retourneer het originele video bestand als output (geen wijziging)
             return {"output_path": file_path, "srt_path": srt_path, "original_srt_path": original_srt_path}
@@ -74,21 +92,27 @@ class VideoProcessor:
             srt_path = os.path.join(os.path.dirname(video_path), f"{base_name}_NL.srt")
             print(f"🔍 [DEBUG] VideoProcessor._create_srt_file: SRT pad = {srt_path}")
             
-            # Maak SRT content
-            srt_content = ""
-            for i, segment in enumerate(transcriptions, 1):
-                start_time = self._format_time(segment["start"])
-                end_time = self._format_time(segment["end"])
-                
-                            # Toon alleen vertaling (origineel komt in apart SRT bestand)
-                text = segment.get("text", "")
-                print(f"🔍 [DEBUG] VideoProcessor._create_srt_file: Segment {i}: vertaalde tekst")
-                
-                srt_content += f"{i}\n{start_time} --> {end_time}\n{text}\n\n"
-            
-            # Schrijf SRT bestand
-            with open(srt_path, 'w', encoding='utf-8') as f:
-                f.write(srt_content)
+            # Gebruik WhisperX SRT functies voor betere accuracy als beschikbaar
+            if WHISPERX_SRT_AVAILABLE:
+                print("🎯 Gebruik WhisperX SRT generatie voor betere accuracy")
+                # Valideer transcripties eerst
+                if validate_whisperx_transcriptions(transcriptions):
+                    # Genereer SRT met WhisperX functies
+                    srt_content = create_whisperx_srt_content(transcriptions)
+                    # Schrijf SRT bestand
+                    with open(srt_path, 'w', encoding='utf-8') as f:
+                        f.write(srt_content)
+                else:
+                    print("⚠️ WhisperX validatie gefaald, gebruik standaard SRT generatie")
+                    srt_content = self._create_standard_srt_content(transcriptions)
+                    with open(srt_path, 'w', encoding='utf-8') as f:
+                        f.write(srt_content)
+            else:
+                # Fallback naar standaard SRT generatie
+                print("📝 Gebruik standaard SRT generatie")
+                srt_content = self._create_standard_srt_content(transcriptions)
+                with open(srt_path, 'w', encoding='utf-8') as f:
+                    f.write(srt_content)
             
             print(f"✅ SRT bestand gemaakt: {srt_path}")
             print(f"🔍 [DEBUG] VideoProcessor._create_srt_file: SRT bestand grootte = {os.path.getsize(srt_path)} bytes")
@@ -97,6 +121,16 @@ class VideoProcessor:
         except Exception as e:
             print(f"❌ Fout bij maken SRT bestand: {e}")
             return None
+    
+    def _create_standard_srt_content(self, transcriptions: List[Dict[str, Any]]) -> str:
+        """Maak standaard SRT content als fallback"""
+        srt_content = ""
+        for i, segment in enumerate(transcriptions, 1):
+            start_time = self._format_time(segment["start"])
+            end_time = self._format_time(segment["end"])
+            text = segment.get("text", "")
+            srt_content += f"{i}\n{start_time} --> {end_time}\n{text}\n\n"
+        return srt_content
     
     def _create_original_srt_file(self, transcriptions: List[Dict[str, Any]], video_path: str) -> Optional[str]:
         """Maak SRT bestand van originele transcripties (zonder vertaling)"""
@@ -108,21 +142,27 @@ class VideoProcessor:
             srt_path = os.path.join(os.path.dirname(video_path), f"{base_name}.srt")
             print(f"🔍 [DEBUG] VideoProcessor._create_original_srt_file: SRT pad = {srt_path}")
             
-            # Maak SRT content met alleen originele tekst
-            srt_content = ""
-            for i, segment in enumerate(transcriptions, 1):
-                start_time = self._format_time(segment["start"])
-                end_time = self._format_time(segment["end"])
-                
-                # Gebruik originele tekst als die beschikbaar is, anders fallback naar text
-                original_text = segment.get("original_text", segment.get("text", ""))
-                text = original_text
-                
-                srt_content += f"{i}\n{start_time} --> {end_time}\n{text}\n\n"
-            
-            # Schrijf SRT bestand
-            with open(srt_path, 'w', encoding='utf-8') as f:
-                f.write(srt_content)
+            # Gebruik WhisperX SRT functies voor betere accuracy als beschikbaar
+            if WHISPERX_SRT_AVAILABLE:
+                print("🎯 Gebruik WhisperX SRT generatie voor originele transcripties")
+                # Valideer transcripties eerst
+                if validate_whisperx_transcriptions(transcriptions):
+                    # Genereer SRT met WhisperX functies
+                    srt_content = create_whisperx_srt_content(transcriptions)
+                    # Schrijf SRT bestand
+                    with open(srt_path, 'w', encoding='utf-8') as f:
+                        f.write(srt_content)
+                else:
+                    print("⚠️ WhisperX validatie gefaald, gebruik standaard SRT generatie")
+                    srt_content = self._create_standard_srt_content(transcriptions)
+                    with open(srt_path, 'w', encoding='utf-8') as f:
+                        f.write(srt_content)
+            else:
+                # Fallback naar standaard SRT generatie
+                print("📝 Gebruik standaard SRT generatie voor originele transcripties")
+                srt_content = self._create_standard_srt_content(transcriptions)
+                with open(srt_path, 'w', encoding='utf-8') as f:
+                    f.write(srt_content)
             
             print(f"✅ Origineel SRT bestand gemaakt: {srt_path}")
             print(f"🔍 [DEBUG] VideoProcessor._create_original_srt_file: SRT bestand grootte = {os.path.getsize(srt_path)} bytes")
@@ -150,11 +190,11 @@ class VideoProcessor:
             # Altijd softcoded ondertiteling (hardcoded wordt niet meer ondersteund)
             print("📝 Softcoded ondertiteling - voeg SRT toe als externe track")
             print(f"🔍 [DEBUG] VideoProcessor: FFmpeg commando voor softcoded (replace):")
+            
             # FFmpeg commando voor softcoded ondertiteling
-            # Converteer SRT naar mov_text (ondersteund door MP4) en voeg toe als externe track
             cmd = [
                 "ffmpeg", "-i", video_path,
-                "-i", srt_path,  # Voeg SRT toe als tweede input toe
+                "-i", srt_path,  # Voeg SRT toe als tweede input
                 "-c:v", "copy",  # Kopieer video stream
                 "-c:a", "copy",  # Kopieer audio stream
                 "-c:s", "mov_text",  # Converteer SRT naar mov_text formaat
@@ -165,202 +205,85 @@ class VideoProcessor:
             print(f"🔍 [DEBUG] VideoProcessor: FFmpeg commando: {' '.join(cmd)}")
             
             # Voer FFmpeg uit
-            print(f"🔍 [DEBUG] VideoProcessor: Start FFmpeg uitvoering (replace)...")
+            print(f"🔍 [DEBUG] VideoProcessor: Start FFmpeg uitvoering...")
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-            print(f"🔍 [DEBUG] VideoProcessor: FFmpeg returncode (replace): {result.returncode}")
-            print(f"🔍 [DEBUG] VideoProcessor: FFmpeg stdout (replace): {result.stdout}")
-            print(f"🔍 [DEBUG] VideoProcessor: FFmpeg stderr (replace): {result.stderr}")
+            print(f"🔍 [DEBUG] VideoProcessor: FFmpeg returncode: {result.returncode}")
             
             if result.returncode == 0 and os.path.exists(output_path):
-                print(f"✅ Ondertiteling toegevoegd ({subtitle_type}): {output_path}")
+                print(f"✅ Ondertiteling toegevoegd: {output_path}")
                 return output_path
             else:
-                print(f"❌ FFmpeg fout: {result.stderr}")
+                print(f"❌ FFmpeg gefaald: {result.stderr}")
                 return None
                 
         except subprocess.TimeoutExpired:
-            print("❌ Video verwerking timeout (10 minuten)")
+            print("❌ FFmpeg timeout - video te lang")
             return None
         except Exception as e:
             print(f"❌ Fout bij toevoegen ondertiteling: {e}")
             return None
     
     def _format_time(self, seconds: float) -> str:
-        """Converteer seconden naar SRT tijdformaat (HH:MM:SS,mmm)"""
+        """Converteer seconden naar SRT timestamp formaat"""
         try:
             hours = int(seconds // 3600)
             minutes = int((seconds % 3600) // 60)
             secs = int(seconds % 60)
             millisecs = int((seconds % 1) * 1000)
-            
-            formatted_time = f"{hours:02d}:{minutes:02d}:{secs:02d},{millisecs:03d}"
-            print(f"🔍 [DEBUG] VideoProcessor._format_time: {seconds}s -> {formatted_time}")
-            return formatted_time
-        except Exception as e:
-            print(f"🔍 [DEBUG] VideoProcessor._format_time: Fout bij formatteren tijd {seconds}: {e}")
+            return f"{hours:02d}:{minutes:02d}:{secs:02d},{millisecs:03d}"
+        except:
             return "00:00:00,000"
     
-    def create_thumbnail(self, video_path: str, output_path: str, time_position: str = "00:00:05") -> bool:
-        """Maak thumbnail van video op specifieke tijd"""
+    def _get_preserve_subtitles_setting(self) -> bool:
+        """Haal preserve_subtitles instelling op"""
         try:
-            cmd = [
-                "ffmpeg", "-i", video_path,
-                "-ss", time_position,  # Tijd positie
-                "-vframes", "1",  # Eén frame
-                "-q:v", "2",  # Hoge kwaliteit
-                "-y",  # Overschrijf bestaand bestand
-                output_path
-            ]
-            
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-            
-            if result.returncode == 0 and os.path.exists(output_path):
-                print(f"✅ Thumbnail gemaakt: {output_path}")
-                return True
+            if self.settings:
+                preserve_subtitles = self.settings.get("preserve_subtitles", False)
+                print(f"🔍 [DEBUG] VideoProcessor._get_preserve_subtitles_setting: {preserve_subtitles}")
+                return preserve_subtitles
             else:
-                print(f"❌ Thumbnail fout: {result.stderr}")
+                print("⚠️ VideoProcessor._get_preserve_subtitles_setting: self.settings is None")
                 return False
-                
         except Exception as e:
-            print(f"❌ Fout bij maken thumbnail: {e}")
+            print(f"❌ Fout bij ophalen preserve_subtitles instelling: {e}")
             return False
     
-    def _get_preserve_subtitles_setting(self) -> bool:
-        """Haal preserve_subtitles instelling op (altijd False)"""
-        # Er worden altijd alleen SRT bestanden gemaakt - geen video verwerking
-        print(f"🔍 [DEBUG] VideoProcessor._get_preserve_subtitles_setting: Altijd alleen SRT bestanden maken")
-        return False
-    
     def _get_subtitle_type_setting(self) -> str:
-        """Haal subtitle_type instelling op (altijd softcoded)"""
-        # Hardcoded ondertiteling wordt niet meer ondersteund - altijd softcoded
-        print(f"🔍 [DEBUG] VideoProcessor: Subtitle type instelling: altijd softcoded (hardcoded niet meer ondersteund)")
-        return 'softcoded'
-    
-    def _add_subtitles_preserve_original(self, video_path: str, transcriptions: List[Dict[str, Any]]) -> Optional[str]:
-        """Voeg ondertiteling toe aan video terwijl originele ondertitels behouden blijven"""
+        """Haal subtitle_type instelling op"""
         try:
-            print(f"🔍 [DEBUG] VideoProcessor._add_subtitles_preserve_original: Start met video_path = {video_path}")
-            print(f"🔍 [DEBUG] VideoProcessor._add_subtitles_preserve_original: transcriptions count = {len(transcriptions) if transcriptions else 0}")
-            
-            # Genereer output bestandsnaam
-            base_name = os.path.splitext(os.path.basename(video_path))[0]
-            output_path = os.path.join(os.path.dirname(video_path), f"{base_name}_with_subtitles.mp4")
-            print(f"🔍 [DEBUG] VideoProcessor._add_subtitles_preserve_original: output_path = {output_path}")
-            
-            # Maak eerst SRT bestand
-            srt_path = self._create_srt_file(transcriptions, video_path)
-            if not srt_path:
-                return None
-            
-            # Haal subtitle type instelling op
-            subtitle_type = self._get_subtitle_type_setting()
-            print(f"🔍 [DEBUG] VideoProcessor._add_subtitles_preserve_original: subtitle_type = {subtitle_type}")
-            
-            # Altijd softcoded ondertiteling (hardcoded wordt niet meer ondersteund)
-            print("📝 Softcoded ondertiteling - voeg SRT toe als externe track")
-            print(f"🔍 [DEBUG] VideoProcessor: FFmpeg commando voor softcoded (preserve):")
-            # FFmpeg commando voor softcoded ondertiteling
-            # Converteer SRT naar mov_text (ondersteund door MP4) en voeg toe als externe track
-            cmd = [
-                "ffmpeg", "-i", video_path,
-                "-i", srt_path,  # Voeg SRT als tweede input toe
-                "-c:v", "copy",  # Kopieer video stream
-                "-c:a", "copy",  # Kopieer audio stream
-                "-c:s", "mov_text",  # Converteer SRT naar mov_text formaat
-                "-metadata:s:s:0", "language=nld",  # Stel taal in
-                "-y",  # Overschrijf bestaand bestand
-                output_path
-            ]
-            print(f"🔍 [DEBUG] VideoProcessor: FFmpeg commando: {' '.join(cmd)}")
-            
-            # Voer FFmpeg uit
-            print(f"🔍 [DEBUG] VideoProcessor: Start FFmpeg uitvoering (preserve)...")
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-            print(f"🔍 [DEBUG] VideoProcessor: FFmpeg returncode (preserve): {result.returncode}")
-            print(f"🔍 [DEBUG] VideoProcessor: FFmpeg stdout (preserve): {result.stdout}")
-            print(f"🔍 [DEBUG] VideoProcessor: FFmpeg stderr (preserve): {result.stderr}")
-            
-            # Ruim SRT bestand op
-            try:
-                if os.path.exists(srt_path):
-                    os.remove(srt_path)
-            except:
-                pass
-            
-            if result.returncode == 0 and os.path.exists(output_path):
-                print(f"✅ Ondertiteling toegevoegd ({subtitle_type}, originele behouden): {output_path}")
-                return output_path
+            if self.settings:
+                subtitle_type = self.settings.get("subtitle_type", "softcoded")
+                print(f"🔍 [DEBUG] VideoProcessor._get_subtitle_type_setting: {subtitle_type}")
+                return subtitle_type
             else:
-                print(f"❌ FFmpeg fout: {result.stderr}")
-                # Probeer alternatieve methode met overlay filter
-                return self._add_subtitles_overlay_method(video_path, transcriptions)
-                
-        except subprocess.TimeoutExpired:
-            print("❌ Video verwerking timeout (10 minuten)")
-            return None
+                print("⚠️ VideoProcessor._get_subtitle_type_setting: self.settings is None")
+                return "softcoded"
         except Exception as e:
-            print(f"❌ Fout bij toevoegen ondertiteling: {e}")
-            return None
-    
-    def _add_subtitles_overlay_method(self, video_path: str, transcriptions: List[Dict[str, Any]]) -> Optional[str]:
-        """Alternatieve methode om ondertiteling toe te voegen met overlay filter"""
+            print(f"❌ Fout bij ophalen subtitle_type instelling: {e}")
+            return "softcoded"
+
+    def _remove_existing_original_srt(self, video_path: str):
+        """Verwijder bestaand origineel SRT bestand als het bestaat"""
         try:
-            print(f"🔍 [DEBUG] VideoProcessor._add_subtitles_overlay_method: Start met video_path = {video_path}")
-            print(f"🔍 [DEBUG] VideoProcessor._add_subtitles_overlay_method: transcriptions count = {len(transcriptions) if transcriptions else 0}")
-            
-            # Genereer output bestandsnaam
+            # Genereer pad naar origineel SRT bestand
             base_name = os.path.splitext(os.path.basename(video_path))[0]
-            output_path = os.path.join(os.path.dirname(video_path), f"{base_name}_with_subtitles.mp4")
-            print(f"🔍 [DEBUG] VideoProcessor._add_subtitles_overlay_method: output_path = {output_path}")
+            original_srt_path = os.path.join(os.path.dirname(video_path), f"{base_name}.srt")
             
-            # Maak eerst SRT bestand
-            srt_path = self._create_srt_file(transcriptions, video_path)
-            if not srt_path:
-                return None
-            
-            # Haal subtitle type instelling op
-            subtitle_type = self._get_subtitle_type_setting()
-            print(f"🔍 [DEBUG] VideoProcessor._add_subtitles_overlay_method: subtitle_type = {subtitle_type}")
-            
-            # Altijd softcoded ondertiteling (hardcoded wordt niet meer ondersteund)
-            print("📝 Softcoded ondertiteling (overlay methode) - voeg SRT toe als externe track")
-            print(f"🔍 [DEBUG] VideoProcessor: FFmpeg commando voor softcoded (overlay):")
-            # FFmpeg commando voor softcoded ondertiteling
-            # Converteer SRT naar mov_text (ondersteund door MP4) en voeg toe als externe track
-            cmd = [
-                "ffmpeg", "-i", video_path,
-                "-i", srt_path,  # Voeg SRT als tweede input toe
-                "-c:v", "copy",  # Kopieer video stream
-                "-c:a", "copy",  # Kopieer audio stream
-                "-c:s", "mov_text",  # Converteer SRT naar mov_text formaat
-                "-metadata:s:s:0", "language=nld",  # Stel taal in
-                "-y",  # Overschrijf bestaand bestand
-                output_path
-            ]
-            print(f"🔍 [DEBUG] VideoProcessor: FFmpeg commando: {' '.join(cmd)}")
-            
-            # Voer FFmpeg uit
-            print(f"🔍 [DEBUG] VideoProcessor: Start FFmpeg uitvoering (overlay)...")
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-            print(f"🔍 [DEBUG] VideoProcessor: FFmpeg returncode (overlay): {result.returncode}")
-            print(f"🔍 [DEBUG] VideoProcessor: FFmpeg stdout (overlay): {result.stdout}")
-            print(f"🔍 [DEBUG] VideoProcessor: FFmpeg stderr (overlay): {result.stderr}")
-            
-            # Ruim SRT bestand op
-            try:
-                if os.path.exists(srt_path):
-                    os.remove(srt_path)
-            except:
-                pass
-            
-            if result.returncode == 0 and os.path.exists(output_path):
-                print(f"✅ Ondertiteling toegevoegd ({subtitle_type}, overlay methode): {output_path}")
-                return output_path
+            # Controleer of het bestand bestaat
+            if os.path.exists(original_srt_path):
+                print(f"🗑️ Verwijder bestaand origineel SRT bestand: {original_srt_path}")
+                
+                # Verwijder het bestand
+                os.remove(original_srt_path)
+                
+                if os.path.exists(original_srt_path):
+                    print(f"⚠️ Kon origineel SRT bestand niet verwijderen: {original_srt_path}")
+                else:
+                    print(f"✅ Origineel SRT bestand succesvol verwijderd: {original_srt_path}")
             else:
-                print(f"❌ FFmpeg overlay methode gefaald: {result.stderr}")
-                return None
+                print(f"ℹ️ Geen bestaand origineel SRT bestand gevonden om te verwijderen: {original_srt_path}")
                 
         except Exception as e:
-            print(f"❌ Fout bij overlay methode: {e}")
-            return None
+            print(f"⚠️ Fout bij verwijderen origineel SRT bestand: {e}")
+            import traceback
+            traceback.print_exc()

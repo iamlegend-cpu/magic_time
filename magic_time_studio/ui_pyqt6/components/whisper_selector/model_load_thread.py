@@ -56,25 +56,25 @@ class ModelLoadThread(QThread):
             except Exception as e:
                 print(f"❌ Fout bij whisper manager: {e}")
             
-            # Fallback - probeer direct fast whisper
-            if self.whisper_type == "fast":
+            # Fallback - probeer direct WhisperX
+            if self.whisper_type == "whisperx":
                 try:
-                    from app_core.fast_whisper import FastWhisper
-                    fast_whisper = FastWhisper()
-                    success = fast_whisper.load_model(self.model_name, self.device, self.compute_type)
+                    from app_core.whisperx_processor import WhisperXProcessor
+                    whisperx = WhisperXProcessor()
+                    success = whisperx.initialize(self.model_name, self.device, self.compute_type)
                     
                     if success:
-                        print(f"✅ Fast Whisper model {self.model_name} succesvol geladen op {self.device}")
+                        print(f"✅ WhisperX model {self.model_name} succesvol geladen op {self.device}")
                     else:
-                        print(f"❌ Fast Whisper model {self.model_name} laden gefaald op {self.device}")
+                        print(f"❌ WhisperX model {self.model_name} laden gefaald op {self.device}")
                     
                     self.finished.emit(success)
                     return
                     
                 except ImportError:
-                    print("⚠️ Fast Whisper niet beschikbaar")
+                    print("⚠️ WhisperX niet beschikbaar")
                 except Exception as e:
-                    print(f"❌ Fout bij Fast Whisper: {e}")
+                    print(f"❌ Fout bij WhisperX: {e}")
             
             # Als alle methoden falen
             print(f"❌ Kon {self.whisper_type} model {self.model_name} niet laden")

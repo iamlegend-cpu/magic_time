@@ -71,8 +71,7 @@ class ProcessingManager:
         # Verbind status signalen
         self._connect_status_signals()
         
-        # Configureer StopManager
-        self._configure_stop_manager()
+        # StopManager configuratie verwijderd - geen stop functionaliteit meer
     
     def _connect_progress_signal(self):
         """Verbind progress signal"""
@@ -105,17 +104,7 @@ class ProcessingManager:
         except Exception as e:
             print(f"⚠️ Fout bij verbinden error_occurred signal: {e}")
     
-    def _configure_stop_manager(self):
-        """Configureer StopManager"""
-        if self.main_app.stop_manager:
-            try:
-                self.main_app.stop_manager.set_processing_thread(self.processing_thread)
-                self.main_app.stop_manager.set_main_window(self.main_app.ui_manager.main_window)
-                print("✅ StopManager geconfigureerd")
-            except Exception as e:
-                print(f"⚠️ Fout bij configureren StopManager: {e}")
-        else:
-            print("⚠️ StopManager niet geïnitialiseerd, verwerking zal niet gestopt worden bij afsluiten")
+
     
     def _start_processing_thread(self):
         """Start de ProcessingThread"""
@@ -147,8 +136,17 @@ class ProcessingManager:
         """Log status updates in debug mode"""
         if self.main_app.DEBUG_MODE and any(keyword in message for keyword in ["COMPLETED_FILE:", "FILE_COMPLETED_REMOVE:", "CONSOLE_OUTPUT:", "❌", "⚠️", "✅"]):
             try:
-                from ...core.logging import logger
-                logger.log_debug(f"Status update: {message}")
+                # Probeer verschillende import methoden
+                try:
+                    from ...core.logging import logger
+                except ImportError:
+                    try:
+                        from magic_time_studio.core.logging import logger
+                    except ImportError:
+                        logger = None
+                
+                if logger:
+                    logger.log_debug(f"Status update: {message}")
             except ImportError:
                 pass
     
@@ -218,10 +216,8 @@ class ProcessingManager:
             except ValueError:
                 progress = None
             
-            # Voeg toe aan console output in GUI
+            # Update alleen de console progress indicator (geen dubbele console output)
             if self.main_app.ui_manager.main_window and hasattr(self.main_app.ui_manager.main_window, 'processing_panel'):
-                self.main_app.ui_manager.main_window.processing_panel.add_console_output(console_message, progress)
-                # Update ook de console progress indicator
                 if progress is not None:
                     self.main_app.ui_manager.main_window.processing_panel.update_console_progress(progress)
             else:
@@ -230,60 +226,90 @@ class ProcessingManager:
     def _handle_normal_status_update(self, message: str):
         """Verwerk normale status update"""
         if self.main_app.ui_manager.main_window:
+            # Update alleen de hoofdstatus (geen dubbele logging)
             self.main_app.ui_manager.main_window.update_status(message)
-            # Voeg ook toe aan processing panel log
+            
+            # Voeg toe aan processing panel log (alleen voor belangrijke berichten)
             if hasattr(self.main_app.ui_manager.main_window, 'processing_panel'):
                 self._update_processing_panel(message)
             else:
                 print("⚠️ main_window of processing_panel is None, geen status update verwerkt")
         
-        # Voeg ook toe aan logging systeem voor log viewer
-        self._log_status_message(message)
+        # Voeg toe aan logging systeem voor log viewer (alleen voor belangrijke berichten)
+        if any(keyword in message for keyword in ["✅", "❌", "⚠️", "🚀", "🎬", "🎤", "⏱️"]):
+            self._log_status_message(message)
     
     def _update_processing_panel(self, message: str):
         """Update processing panel met status bericht"""
         try:
-            self.main_app.ui_manager.main_window.processing_panel.log_output.append(message)
-            self.main_app.ui_manager.main_window.processing_panel.log_output.ensureCursorVisible()
+            # Voeg toe aan processing panel log (alleen voor belangrijke berichten, geen duplicaten)
+            if any(keyword in message for keyword in ["✅", "❌", "⚠️", "🚀", "🎬", "🎤", "⏱️"]):
+                # Controleer of bericht al in log staat om duplicaten te voorkomen
+                log_output = self.main_app.ui_manager.main_window.processing_panel.log_output
+                if not log_output.toPlainText().endswith(message):
+                    log_output.append(message)
+                    log_output.ensureCursorVisible()
             
-            # Voeg ook toe aan console output voor real-time updates
-            self.main_app.ui_manager.main_window.processing_panel.add_console_output(message)
-            
-            # Update console progress indicator voor Fast Whisper progress updates
-            self._parse_fast_whisper_progress(message)
+            # WhisperX progress parsing
+            if "WhisperX:" in message or "whisperx" in message.lower():
+                self._parse_whisperx_progress(message)
+            elif "transcriptie" in message.lower() or "transcription" in message.lower():
+                self._parse_whisperx_progress(message)
+            elif "alignment" in message.lower():
+                self._parse_whisperx_progress(message)
         except Exception as e:
             print(f"⚠️ Fout bij updaten processing panel: {e}")
     
-    def _parse_fast_whisper_progress(self, message: str):
-        """Parse Whisper progress uit bericht (zowel Fast als Standaard)"""
-        if "🎤" in message and "%" in message:
-            try:
-                # Zoek naar percentage in het bericht (bijv. "🎤 Faster Whisper: 45.5% - filename")
-                # of "🎤 Standaard Whisper: 45.5% - filename")
-                parts = message.split("🎤")[1].split("%")[0].strip()
-                if ":" in parts:
-                    percent_str = parts.split(":")[1].strip()
+    def _parse_whisperx_progress(self, message: str):
+        """Parse WhisperX progress uit bericht"""
+        try:
+            # Controleer of het bericht WhisperX progress bevat
+            if "WhisperX:" not in message:
+                return  # Geen WhisperX progress bericht
+            
+            # Zoek naar percentage in het bericht (bijv. "WhisperX: 45.5% - filename")
+            # of "whisperx: 45.5% - filename")
+            parts = message.split("WhisperX:")
+            if len(parts) < 2:
+                return  # Niet genoeg delen
+                
+            percent_part = parts[1].split("%")[0].strip()
+            if ":" in percent_part:
+                percent_str = percent_part.split(":")[1].strip()
+                try:
                     percent = float(percent_str)
-                    # Update console met Whisper progress
-                    print(f"🔍 [DEBUG] Whisper progress: {percent:.1f}% - {message}")
+                    # Update console met WhisperX progress
+                    print(f"🔍 [DEBUG] WhisperX progress: {percent:.1f}% - {message}")
                     
                     # Update ook de hoofdprogress bar als mogelijk
                     if self.main_app.ui_manager.main_window and hasattr(self.main_app.ui_manager.main_window, 'processing_panel'):
                         try:
-                            # Whisper transcriptie is ongeveer 15% van de totale verwerking (50% tot 65%)
+                            # WhisperX progress is ongeveer 15% van de totale verwerking (50% tot 65%)
                             whisper_progress = 50.0 + (percent * 0.15)
                             self.main_app.ui_manager.main_window.processing_panel.progress_bar.setValue(int(whisper_progress))
                         except Exception as e:
                             print(f"⚠️ Fout bij updaten hoofdprogress bar: {e}")
-            except Exception as e:
-                print(f"⚠️ Fout bij parsen Whisper progress: {e}")
-                pass
+                except ValueError:
+                    # Kon percentage niet parsen
+                    pass
+        except Exception as e:
+            print(f"⚠️ Fout bij parsen WhisperX progress: {e}")
+            pass
     
     def _log_status_message(self, message: str):
         """Log status bericht in logging systeem"""
         try:
-            from ...core.logging import logger
-            logger.add_log_message(message, "INFO")
+            # Probeer verschillende import methoden
+            try:
+                from ...core.logging import logger
+            except ImportError:
+                try:
+                    from magic_time_studio.core.logging import logger
+                except ImportError:
+                    logger = None
+            
+            if logger:
+                logger.add_log_message(message, "INFO")
         except ImportError:
             pass  # Stil falen als logging niet beschikbaar is
     
@@ -334,25 +360,7 @@ class ProcessingManager:
         except Exception as e:
             print(f"⚠️ Fout bij weergeven foutmelding: {e}")
     
-    def stop_processing(self):
-        """Stop verwerking via StopManager"""
-        print("🛑 Hoofdapplicatie: _on_stop_processing aangeroepen")
-        if self.main_app.stop_manager:
-            try:
-                # Stop verwerking via StopManager
-                self.main_app.stop_manager.stop_all_processes()
-                print("✅ StopManager stop_all_processes aangeroepen")
-                
-                # Reset UI
-                self._reset_processing_ui()
-                
-                print("✅ Hoofdapplicatie: Stop verwerking voltooid")
-            except Exception as e:
-                print(f"❌ Fout bij stoppen verwerking: {e}")
-                # Probeer alsnog de UI te resetten
-                self._reset_processing_ui_force()
-        else:
-            print("⚠️ StopManager niet geïnitialiseerd, geen verwerking gestopt")
+
     
     def _reset_processing_ui(self):
         """Reset processing UI"""
@@ -372,11 +380,4 @@ class ProcessingManager:
             except Exception as e:
                 print(f"⚠️ Fout bij aanroepen processing_finished: {e}")
     
-    def _reset_processing_ui_force(self):
-        """Forceer reset van processing UI"""
-        if self.main_app.ui_manager.main_window:
-            try:
-                self.main_app.ui_manager.main_window.processing_active = False
-                print("✅ processing_active flag alsnog gereset")
-            except Exception as e:
-                print(f"⚠️ Fout bij alsnog resetten processing_active flag: {e}")
+

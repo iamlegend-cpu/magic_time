@@ -31,7 +31,7 @@ try:
                 'settings_panel': True,
                 'files_panel': True,
                 'processing_panel': True,
-                'batch_panel': True,
+                'batch_panel': False,  # Standaard uitgeschakeld
                 'charts_panel': True,
                 'completed_files_panel': True
             }
@@ -112,6 +112,40 @@ try:
                 except Exception as e:
                     print(f"⚠️ Fout bij opslaan panel configuratie: {e}")
         
+        def _save_to_env_file(self, key: str, value):
+            """Sla configuratie op in .env bestand"""
+            try:
+                env_file = self.get_whisper_config_path()
+                if env_file and os.path.exists(env_file):
+                    # Lees bestaande .env bestand
+                    with open(env_file, 'r', encoding='utf-8') as f:
+                        lines = f.readlines()
+                    
+                    # Zoek naar bestaande key en update deze
+                    key_found = False
+                    for i, line in enumerate(lines):
+                        if line.strip().startswith(f"{key}="):
+                            lines[i] = f"{key}={value}\n"
+                            key_found = True
+                            break
+                    
+                    # Voeg nieuwe key toe als deze niet bestond
+                    if not key_found:
+                        lines.append(f"{key}={value}\n")
+                    
+                    # Schrijf bijgewerkte .env bestand
+                    with open(env_file, 'w', encoding='utf-8') as f:
+                        f.writelines(lines)
+                    
+                    # Alleen in debug mode tonen
+                    if os.environ.get('DEBUG', 'false').lower() == 'true':
+                        print(f"✅ Configuratie opgeslagen in .env bestand: {key}={value}")
+                    
+            except Exception as e:
+                print(f"⚠️ Fout bij opslaan in .env bestand: {e}")
+                import traceback
+                traceback.print_exc()
+        
         def get(self, key: str, default=None):
             """Krijg een configuratie waarde"""
             return self.config.get(key, self.env_vars.get(key, default))
@@ -123,6 +157,51 @@ try:
         def set(self, key: str, value):
             """Zet een configuratie waarde"""
             self.config[key] = value
+            # Niet automatisch naar .env bestand opslaan om dubbele opslag te voorkomen
+        
+        def set_json(self, key: str, value):
+            """Zet een configuratie waarde als JSON (voor complexe data types)"""
+            import json
+            self.config[key] = json.dumps(value, ensure_ascii=False)
+        
+        def get_json(self, key: str, default=None):
+            """Krijg een configuratie waarde als JSON (voor complexe data types)"""
+            import json
+            value = self.config.get(key)
+            if value is None:
+                return default
+            try:
+                return json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                return default
+        
+        def get_int(self, key: str, default=0):
+            """Krijg een configuratie waarde als integer"""
+            value = self.get(key, default)
+            try:
+                return int(value) if value is not None else default
+            except (ValueError, TypeError):
+                return default
+        
+        def get_bool(self, key: str, default=False):
+            """Krijg een configuratie waarde als boolean"""
+            value = self.get(key, default)
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, str):
+                return value.lower() in ('true', '1', 'yes', 'on')
+            try:
+                return bool(int(value)) if value is not None else default
+            except (ValueError, TypeError):
+                return default
+        
+        def get_float(self, key: str, default=0.0):
+            """Krijg een configuratie waarde als float"""
+            value = self.get(key, default)
+            try:
+                return float(value) if value is not None else default
+            except (ValueError, TypeError):
+                return default
         
         def set_env(self, key: str, value):
             """Zet een environment variabele"""
@@ -142,7 +221,9 @@ try:
                     with open(config_file, 'w', encoding='utf-8') as f:
                         for key, value in self.config.items():
                             f.write(f"{key}={value}\n")
-                    print(f"✅ Configuratie opgeslagen naar: {config_file}")
+                    # Alleen in debug mode tonen
+                    if os.environ.get('DEBUG', 'false').lower() == 'true':
+                        print(f"✅ Configuratie opgeslagen naar: {config_file}")
                 except Exception as e:
                     print(f"⚠️ Fout bij opslaan configuratie: {e}")
         
@@ -227,7 +308,7 @@ try:
     
 except ImportError as e:
     print(f"⚠️ Config import gefaald: {e}")
-    # Fallback naar dummy config manager
+    # Fallback naar vereenvoudigde config manager (alleen gebruikt bij import fouten)
     class DummyConfigManager:
         def __init__(self):
             self.config = {}
@@ -236,7 +317,7 @@ except ImportError as e:
                 'settings_panel': True,
                 'files_panel': True,
                 'processing_panel': True,
-                'batch_panel': True,
+                'batch_panel': False,  # Standaard uitgeschakeld
                 'charts_panel': True,
                 'completed_files_panel': True
             }
@@ -250,7 +331,7 @@ except ImportError as e:
                 return os.path.join(os.getcwd(), 'panel_config.json')
         
         def _load_panel_config(self):
-            """Laad panel configuratie uit JSON bestand (dummy implementatie)"""
+            """Laad panel configuratie uit JSON bestand (vereenvoudigde implementatie)"""
             import json
             panel_config_file = self._get_panel_config_path()
             if panel_config_file and os.path.exists(panel_config_file):
@@ -264,7 +345,7 @@ except ImportError as e:
                     print(f"⚠️ Fout bij laden panel configuratie: {e}")
         
         def _save_panel_config(self):
-            """Sla panel configuratie op naar JSON bestand (dummy implementatie)"""
+            """Sla panel configuratie op naar JSON bestand (vereenvoudigde implementatie)"""
             import json
             import datetime
             panel_config_file = self._get_panel_config_path()
@@ -284,10 +365,31 @@ except ImportError as e:
         def get(self, key: str, default=None):
             return default
         
+        def get_json(self, key: str, default=None):
+            """Krijg een configuratie waarde als JSON (vereenvoudigde implementatie)"""
+            return default
+        
+        def get_int(self, key: str, default=0):
+            """Krijg een configuratie waarde als integer (vereenvoudigde implementatie)"""
+            return default
+        
+        def get_bool(self, key: str, default=False):
+            """Krijg een configuratie waarde als boolean (vereenvoudigde implementatie)"""
+            return default
+        
+        def get_float(self, key: str, default=0.0):
+            """Krijg een configuratie waarde als float (vereenvoudigde implementatie)"""
+            return default
+        
         def get_env(self, key: str, default=""):
+            """Krijg een environment variabele (vereenvoudigde implementatie)"""
             return os.environ.get(key, default)
         
         def set(self, key: str, value):
+            pass
+        
+        def set_json(self, key: str, value):
+            """Zet een configuratie waarde als JSON (dummy implementatie)"""
             pass
         
         def set_env(self, key: str, value):
@@ -319,46 +421,46 @@ except ImportError as e:
         
         # Voeg ontbrekende methoden toe
         def load_configuration(self):
-            """Laad configuratie (dummy implementatie)"""
+            """Laad configuratie (vereenvoudigde implementatie)"""
             self._load_panel_config()
         
         def save_configuration(self):
-            """Sla configuratie op (dummy implementatie)"""
+            """Sla configuratie op (vereenvoudigde implementatie)"""
             self._save_panel_config()
         
         def get_visible_panels(self):
-            """Krijg lijst van zichtbare panels (dummy implementatie)"""
+            """Krijg lijst van zichtbare panels (vereenvoudigde implementatie)"""
             return [name for name, visible in self.panel_visibility.items() if visible]
         
         def is_panel_visible(self, panel_name: str):
-            """Controleer of een panel zichtbaar is (dummy implementatie)"""
+            """Controleer of een panel zichtbaar is (vereenvoudigde implementatie)"""
             return self.panel_visibility.get(panel_name, True)
         
         def get_panel_visibility(self, panel_name: str):
-            """Krijg panel zichtbaarheid (dummy implementatie)"""
+            """Krijg panel zichtbaarheid (vereenvoudigde implementatie)"""
             return self.panel_visibility.get(panel_name, True)
         
         def set_panel_visibility(self, panel_name: str, visible: bool):
-            """Stel panel zichtbaarheid in (dummy implementatie)"""
+            """Stel panel zichtbaarheid in (vereenvoudigde implementatie)"""
             self.panel_visibility[panel_name] = visible
             self._save_panel_config()  # Sla direct op
         
         def get_all_panels(self):
-            """Krijg alle beschikbare panels (dummy implementatie)"""
+            """Krijg alle beschikbare panels (vereenvoudigde implementatie)"""
             return list(self.panel_visibility.keys())
         
         def get_theme(self):
-            """Krijg huidige thema (dummy implementatie)"""
+            """Krijg huidige thema (vereenvoudigde implementatie)"""
             return "dark"  # Standaard donker thema
         
         def set_theme(self, theme: str):
-            """Stel thema in (dummy implementatie)"""
+            """Stel thema in (vereenvoudigde implementatie)"""
             pass
         
         def get_language(self):
-            """Krijg huidige taal (dummy implementatie)"""
+            """Krijg huidige taal (vereenvoudigde implementatie)"""
             return "nl"  # Standaard Nederlands
         
         def set_language(self, language: str):
-            """Stel taal in (dummy implementatie)"""
+            """Stel taal in (vereenvoudigde implementatie)"""
             pass 

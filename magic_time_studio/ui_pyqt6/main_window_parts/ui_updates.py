@@ -12,10 +12,14 @@ from PyQt6.QtCore import QTimer, Qt
 def _get_config_manager():
     """Lazy config manager import om circulaire import te voorkomen"""
     try:
-        from core.config import config_manager
+        from ...core.config import config_manager
         return config_manager
     except ImportError:
-        return None
+        try:
+            from magic_time_studio.core.config import config_manager
+            return config_manager
+        except ImportError:
+            return None
 
 # Import UI componenten
 from ..components.settings_panel_wrapper import SettingsPanelWrapper
@@ -25,7 +29,10 @@ from ..components.charts_panel import ChartsPanel
 from ..components.batch_panel import BatchPanel
 
 # Import features
-from ..features.system_monitor import SystemMonitorWidget
+try:
+    from ..features.system_monitor import SystemMonitorWidget
+except ImportError:
+    SystemMonitorWidget = None
 
 class UIUpdatesMixin:
     """Mixin voor UI update functionaliteit"""
@@ -46,12 +53,16 @@ class UIUpdatesMixin:
         self.splitter.setHandleWidth(4)  # Iets dikkere splitter handles voor betere zichtbaarheid
         main_layout.addWidget(self.splitter)
         
-        # Maak panelen
+        # Maak panelen aan
         self.settings_panel = SettingsPanelWrapper()
         self.files_panel = FilesPanel()
         self.processing_panel = ProcessingPanel()
         self.charts_panel = ChartsPanel()
         self.batch_panel = BatchPanel()
+        
+        # Koppel GPU monitor direct aan hoofdvenster voor status updates
+        if hasattr(self.charts_panel, 'gpu_monitor'):
+            self.charts_panel.gpu_monitor.main_window = self
         
         # Stel minimum groottes in voor alle panels
         self.settings_panel.setMinimumWidth(220)
@@ -105,20 +116,14 @@ class UIUpdatesMixin:
         # self.files_panel.files_dropped.connect(self.on_files_dropped)  # Verwijderd - files_panel heeft eigen handler
         self.files_panel.file_selected.connect(self.on_file_selected)
         
-        # Processing panel connections
+        # Processing panel connections - Hersteld voor daadwerkelijke verwerking
         self.processing_panel.processing_started.connect(self.on_processing_started)
-        self.processing_panel.processing_stopped.connect(self.on_processing_stopped)
         self.processing_panel.file_completed.connect(self.on_file_completed)
         
         # Connect processing signals to main window signals
-        # Verwijder deze connecties - ze veroorzaken een oneindige loop
-        # self.processing_started.connect(self._on_processing_started)
-        # self.processing_stopped.connect(self._on_processing_stopped)
+        # Deze connecties zijn niet meer nodig omdat we direct de processing panel signals gebruiken
         
         # Connect settings panel signals to files panel info updates
-        self.settings_panel.settings_panel.whisper_type_changed.connect(
-            self.on_whisper_type_changed
-        )
         self.settings_panel.settings_panel.model_changed.connect(
             self.on_model_changed
         )
@@ -128,20 +133,22 @@ class UIUpdatesMixin:
         self.settings_panel.settings_panel.translator_changed.connect(
             self.files_panel.update_translator_info
         )
-        self.settings_panel.settings_panel.vad_enabled_changed.connect(
-            self.files_panel.update_vad_status
-        )
         
-        # Connect whisper type en model signals
-        self.settings_panel.settings_panel.whisper_type_changed.connect(
-            self.on_whisper_type_changed
-        )
-        self.settings_panel.settings_panel.model_changed.connect(
-            self.on_model_changed
-        )
+        # VAD is altijd ingeschakeld, geen signal connectie nodig
         
         # Update files panel info met huidige instellingen
         self.update_files_panel_info()
+    
+    def setup_timers(self):
+        """Setup timers voor real-time updates"""
+        self.update_timer = QTimer()
+        self.update_timer.timeout.connect(self.periodic_update)
+        self.update_timer.start(1000)
+        
+        # Timer om monitoring zichtbaarheid te garanderen tijdens verwerking
+        self.monitoring_visibility_timer = QTimer()
+        self.monitoring_visibility_timer.timeout.connect(self._ensure_monitoring_visibility)
+        self.monitoring_visibility_timer.start(2000)  # Controleer elke 2 seconden
     
     def update_files_panel_info(self):
         """Update files panel info met huidige instellingen"""
@@ -149,16 +156,14 @@ class UIUpdatesMixin:
             # Haal huidige instellingen op
             current_settings = self.settings_panel.get_current_settings()
             
-            # Update whisper info
-            whisper_type = current_settings.get("whisper_type", "")
+            # Update whisper info - altijd WhisperX
+            whisper_type = "whisperx"
             whisper_model = current_settings.get("whisper_model", "")
             self.files_panel.update_whisper_info(whisper_type, whisper_model)
             
             # Update taal info
             language = current_settings.get("language", "")
-            if language == "Auto detectie":
-                language = "Auto detectie"
-            elif language == "Engels":
+            if language == "Engels" or language == "":
                 language = "en"
             elif language == "Nederlands":
                 language = "nl"
@@ -168,6 +173,9 @@ class UIUpdatesMixin:
                 language = "fr"
             elif language == "Spaans":
                 language = "es"
+            else:
+                # Fallback naar Engels als onbekende taal
+                language = "en"
             self.files_panel.update_language_info(language)
             
             # Update vertaler info
@@ -175,7 +183,7 @@ class UIUpdatesMixin:
             self.files_panel.update_translator_info(translator)
             
             # Update VAD status
-            vad_enabled = current_settings.get("vad_enabled", False)
+            vad_enabled = True  # VAD is altijd ingeschakeld
             self.files_panel.update_vad_status(vad_enabled)
             
             # Update GPU status
@@ -187,134 +195,93 @@ class UIUpdatesMixin:
     def update_gpu_status(self):
         """Update GPU status in files panel"""
         try:
-            # Probeer GPU info op te halen via system monitor
-            from magic_time_studio.ui_pyqt6.features.system_monitor import SystemMonitorWidget
-            
-            monitor = SystemMonitorWidget()
-            gpu_percent = monitor.get_gpu_info()
-            
-            if gpu_percent is not None:
-                self.files_panel.update_gpu_status(True)
-            else:
-                self.files_panel.update_gpu_status(False)
+            # Controleer direct PyTorch CUDA beschikbaarheid
+            import torch
+            has_gpu = torch.cuda.is_available()
+            self.files_panel.update_gpu_status(has_gpu)
                 
         except Exception as e:
             print(f"⚠️ Fout bij updaten GPU status: {e}")
-            # Fallback: probeer PyTorch CUDA
-            try:
-                import torch
-                has_gpu = torch.cuda.is_available()
-                self.files_panel.update_gpu_status(has_gpu)
-            except:
-                self.files_panel.update_gpu_status(False)
-    
-    def on_whisper_type_changed(self, whisper_type: str):
-        """Callback voor whisper type wijziging"""
-        try:
-            # Haal huidige model op
-            current_settings = self.settings_panel.get_current_settings()
-            current_model = current_settings.get("whisper_model", "")
-            
-            # Update files panel met beide waarden
-            self.files_panel.update_whisper_info(whisper_type, current_model)
-            
-        except Exception as e:
-            print(f"⚠️ Fout bij updaten whisper type: {e}")
+            # Fallback: geen GPU
+            self.files_panel.update_gpu_status(False)
     
     def on_model_changed(self, model: str):
-        """Callback voor model wijziging"""
+        """Callback voor WhisperX model wijziging"""
         try:
-            # Haal huidige whisper type op
-            current_settings = self.settings_panel.get_current_settings()
-            current_type = current_settings.get("whisper_type", "")
+            print(f"🔧 MainWindow: WhisperX model gewijzigd naar {model}")
             
-            # Update files panel met beide waarden
-            self.files_panel.update_whisper_info(current_type, model)
+            # Update files panel met WhisperX en het nieuwe model
+            self.files_panel.update_whisper_info("whisperx", model)
+            
+            # Update whisper processor met nieuwe model instellingen
+            if hasattr(self, 'whisper_processor'):
+                try:
+                    # Maak nieuwe instellingen aan met het gekozen model
+                    current_settings = self.settings_panel.get_current_settings()
+                    updated_settings = current_settings.copy()
+                    updated_settings["whisper_model"] = model
+                    
+                    print(f"🔧 MainWindow: Update whisper processor met nieuwe instellingen: {updated_settings}")
+                    self.whisper_processor.set_settings(updated_settings)
+                    print(f"✅ MainWindow: WhisperX processor bijgewerkt met model: {model}")
+                    
+                except Exception as e:
+                    print(f"⚠️ MainWindow: Fout bij updaten whisper processor: {e}")
             
         except Exception as e:
-            print(f"⚠️ Fout bij updaten model: {e}")
+            print(f"⚠️ Fout bij updaten WhisperX model: {e}")
     
 
     
     def update_status(self, message: str):
-        """Update status met real-time updates en voortgangsbalk"""
-        # Update status label
-        if hasattr(self, 'status_label'):
-            self.status_label.setText(message)
+        """Update status label - UITGESCHAKELD om overbodige updates te voorkomen"""
+        # UITGESCHAKELD: Status updates zijn overbodig omdat info al zichtbaar is in verwerkingsbalk
+        # if hasattr(self, 'status_label'):
+        #     self.status_label.setText(message)
+        #     print(f"📝 Status bijgewerkt: {message}")
+        pass
         
-        # Update status bar
-        self.status_bar.showMessage(message)
+        # UITGESCHAKELD: Status bar updates zijn overbodig
+        # self.status_bar.showMessage(message)
         
+        # UITGESCHAKELD: Progress parsing is overbodig
         # Parse Whisper progress uit bericht en update voortgangsbalk
-        progress_found = False
+        # progress_found = False
         
-        # Parse Fast Whisper progress uit bericht
-        if "🎤 Fast Whisper:" in message and "%" in message:
-            try:
-                # Zoek naar percentage in het bericht (bijv. "🎤 Fast Whisper: 45.5% - filename")
-                percent_str = message.split("🎤 Fast Whisper:")[1].split("%")[0].strip()
-                percent = float(percent_str)
-                self.status_bar.showMessage(f"🎤 Fast Whisper: {percent}% - Real-time transcriptie bezig...")
-                
-                # Update voortgangsbalk
-                self._update_status_progress(percent, True)
-                progress_found = True
-            except:
-                pass
-        
-        # Parse Standaard Whisper progress uit bericht
-        elif "🔧 Standaard Whisper:" in message and "%" in message:
-            try:
-                # Zoek naar percentage in het bericht (bijv. "🔧 Standaard Whisper: 45.5% | Verstreken: 01:23 | ETA: 02:45 | filename")
-                percent_str = message.split("🔧 Standaard Whisper:")[1].split("%")[0].strip()
-                percent = float(percent_str)
-                
-                # Haal ETA en verstreken tijd uit het bericht
-                if "ETA:" in message and "Verstreken:" in message:
-                    try:
-                        elapsed_part = message.split("Verstreken:")[1].split("|")[0].strip()
-                        eta_part = message.split("ETA:")[1].split("|")[0].strip()
-                        filename_part = message.split("|")[-1].strip()
-                        
-                        status_msg = f"🔧 Standaard Whisper: {percent}% | Verstreken: {elapsed_part} | ETA: {eta_part} | {filename_part}"
-                        self.status_bar.showMessage(status_msg)
-                        
-                        # Update voortgangsbalk
-                        self._update_status_progress(percent, True)
-                        progress_found = True
-                        return
-                    except:
-                        pass
-                
-                # Fallback naar eenvoudige status
-                self.status_bar.showMessage(f"🔧 Standaard Whisper: {percent}% - Transcriptie bezig...")
-                
-                # Update voortgangsbalk
-                self._update_status_progress(percent, True)
-                progress_found = True
-            except:
-                pass
+        # Parse WhisperX progress uit bericht
+        # if "🎤 WhisperX:" in message and "%" in message:
+        #     try:
+        #         # Zoek naar percentage in het bericht (bijv. "🎤 WhisperX: 45.5% - filename")
+        #         percent_str = message.split("🎤 WhisperX:")[1].split("%")[0].strip()
+        #         percent = float(percent_str)
+        #         self.status_bar.showMessage(f"🎤 WhisperX: {percent}% - Real-time transcriptie bezig...")
+        #         
+        #         # Update voortgangsbalk
+        #         self._update_status_progress(percent, True)
+        #         progress_found = True
+        #     except:
+        #         pass
         
         # Maak timing berichten prominenter
-        elif "⏱️" in message:
-            # Timing berichten krijgen speciale behandeling
-            if "Start verwerking" in message:
-                self.status_bar.showMessage(f"🚀 {message}")
-                self._update_status_progress(0, True)  # Start voortgangsbalk
-            elif "voltooid in" in message:
-                self.status_bar.showMessage(f"✅ {message}")
-                self._update_status_progress(100, False)  # Voltooid, verberg voortgangsbalk
-            elif "TOTALE VERWERKING" in message:
-                self.status_bar.showMessage(f"🎯 {message}")
-                self._update_status_progress(100, False)  # Voltooid, verberg voortgangsbalk
-            else:
-                self.status_bar.showMessage(message)
-        else:
-            self.status_bar.showMessage(message)
+        # elif "⏱️" in message:
+        #     # Timing berichten krijgen speciale behandeling
+        #     if "Start verwerking" in message:
+        #         self.status_bar.showMessage(f"🚀 {message}")
+        #         self._update_status_progress(0, True)  # Start voortgangsbalk
+        #     elif "voltooid in" in message:
+        #         self.status_bar.showMessage(f"✅ {message}")
+        #         self._update_status_progress(100, False)  # Voltooid, verberg voortgangsbalk
+        #     elif "TOTALE VERWERKING" in message:
+        #         self.status_bar.showMessage(f"🎯 {message}")
+        #         self._update_status_progress(100, False)  # Voltooid, verberg voortgangsbalk
+        #     else:
+        #         self.status_bar.showMessage(message)
+        # else:
+        #     self.status_bar.showMessage(message)
         
         # Als geen voortgang gevonden, verberg voortgangsbalk
-        if not progress_found and hasattr(self, 'status_progress_bar'):
-            self._update_status_progress(0, False)
+        # if not progress_found and hasattr(self, 'status_progress_bar'):
+        #     self._update_status_progress(0, False)
     
     def _update_status_progress(self, percent: float, visible: bool):
         """Update de voortgangsbalk in de statusbalk"""
@@ -372,16 +339,7 @@ class UIUpdatesMixin:
                     }
                 """)
     
-    def _on_stop_processing(self):
-        """Handle stop processing signal"""
-        print("🛑 UI: Stop processing signal ontvangen")
-        # De daadwerkelijke stop wordt afgehandeld door de app core
-        # Deze methode is alleen voor UI updates
-        self.update_status("Verwerking gestopt door gebruiker")
-        
-        # Reset voortgangsbalk
-        if hasattr(self, 'status_progress_bar'):
-            self._update_status_progress(0, False)
+
     
     def block_ui_during_processing(self, block: bool):
         """Blokkeer UI elementen tijdens verwerking"""
@@ -427,10 +385,8 @@ class UIUpdatesMixin:
         if hasattr(self, 'processing_panel'):
             if block:
                 self.processing_panel.start_btn.setEnabled(False)
-                self.processing_panel.stop_btn.setEnabled(True)
             else:
                 self.processing_panel.start_btn.setEnabled(True)
-                self.processing_panel.stop_btn.setEnabled(False)
         
         # Blokkeer/deblokkeer menu items tijdens verwerking
         if hasattr(self, 'menuBar'):
@@ -439,7 +395,90 @@ class UIUpdatesMixin:
                 if action.text() in ["Bestanden", "Verwerking"]:
                     action.setEnabled(not block)
         
-        print(f"🔒 MainWindow: UI {'geblokkeerd' if block else 'gedeblokkeerd'}")
+        # BELANGRIJK: Behoud status labels en monitoring zichtbaar tijdens verwerking
+        # Deze moeten altijd zichtbaar blijven voor gebruikers feedback
+        if hasattr(self, 'gpu_status_label'):
+            self.gpu_status_label.setVisible(True)  # Altijd zichtbaar
+        if hasattr(self, 'gpu_memory_label'):
+            self.gpu_memory_label.setVisible(True)  # Altijd zichtbaar
+        if hasattr(self, 'ffmpeg_status_label'):
+            self.ffmpeg_status_label.setVisible(True)  # Altijd zichtbaar
+        if hasattr(self, 'ffmpeg_info_label'):
+            self.ffmpeg_info_label.setVisible(True)  # Altijd zichtbaar
+        if hasattr(self, 'libretranslate_status_label'):
+            self.libretranslate_status_label.setVisible(True)  # Altijd zichtbaar
+        if hasattr(self, 'libretranslate_info_label'):
+            self.libretranslate_info_label.setVisible(True)  # Altijd zichtbaar
+        
+        # Behoud charts panel zichtbaar voor monitoring
+        if hasattr(self, 'charts_panel'):
+            # Zorg ervoor dat charts panel in de splitter blijft
+            if hasattr(self, 'splitter') and self.charts_panel not in [self.splitter.widget(i) for i in range(self.splitter.count())]:
+                # Charts panel is niet in splitter, voeg het toe
+                self.splitter.addWidget(self.charts_panel)
+                print("🔧 Charts panel toegevoegd aan splitter tijdens verwerking")
+            
+            self.charts_panel.setVisible(True)  # Altijd zichtbaar
+            self.charts_panel.show()  # Force show
+            
+            # Zorg ervoor dat monitoring blijft draaien
+            if block:
+                # Start snelle monitoring tijdens verwerking
+                self.charts_panel.start_processing_monitoring()
+            else:
+                # Stop snelle monitoring na verwerking
+                self.charts_panel.stop_processing_monitoring()
+        
+        # BELANGRIJK: Zorg ervoor dat alle zichtbare panels zichtbaar blijven
+        if hasattr(self, 'visible_panels'):
+            for panel_name, panel_widget in self.visible_panels.items():
+                if panel_widget:
+                    panel_widget.setVisible(True)
+                    panel_widget.show()
+                    print(f"🔧 Panel {panel_name} geforceerd zichtbaar tijdens verwerking")
+        
+        # Zorg ervoor dat splitter alle panels toont
+        if hasattr(self, 'splitter'):
+            for i in range(self.splitter.count()):
+                widget = self.splitter.widget(i)
+                if widget:
+                    widget.setVisible(True)
+                    widget.show()
+        
+        # SCHAKEL OVERBODIGE STATUS UPDATES UIT - Deze zijn al zichtbaar in de verwerkingsbalk
+        # self.update_status("Klaar")  # Uitgeschakeld - al zichtbaar in verwerkingsbalk
+        # self.update_status("Verwerking gestart...")  # Uitgeschakeld - al zichtbaar in verwerkingsbalk
+        # self.update_status("Verwerking gestopt")  # Uitgeschakeld - al zichtbaar in verwerkingsbalk
+        
+        print(f"🔒 MainWindow: UI {'geblokkeerd' if block else 'gedeblokkeerd'} - Monitoring blijft zichtbaar, overbodige status updates uitgeschakeld")
+    
+    def _ensure_monitoring_visibility(self):
+        """Zorg ervoor dat monitoring panelen altijd zichtbaar blijven tijdens verwerking"""
+        if hasattr(self, 'processing_active') and self.processing_active:
+            # Verwerking is actief, forceer monitoring zichtbaarheid
+            if hasattr(self, 'charts_panel'):
+                self.charts_panel.setVisible(True)
+                self.charts_panel.show()
+                
+                # Zorg ervoor dat charts panel in de splitter zit
+                if hasattr(self, 'splitter') and self.charts_panel not in [self.splitter.widget(i) for i in range(self.splitter.count())]:
+                    self.splitter.addWidget(self.charts_panel)
+                    print("🔧 Monitoring panel hersteld tijdens verwerking")
+            
+            # Forceer alle zichtbare panels zichtbaar
+            if hasattr(self, 'visible_panels'):
+                for panel_name, panel_widget in self.visible_panels.items():
+                    if panel_widget:
+                        panel_widget.setVisible(True)
+                        panel_widget.show()
+            
+            # Forceer splitter widgets zichtbaar
+            if hasattr(self, 'splitter'):
+                for i in range(self.splitter.count()):
+                    widget = self.splitter.widget(i)
+                    if widget:
+                        widget.setVisible(True)
+                        widget.show()
     
     def reload_interface(self):
         """Herlaad de interface op basis van nieuwe configuratie"""
