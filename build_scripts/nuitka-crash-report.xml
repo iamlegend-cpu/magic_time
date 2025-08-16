@@ -1,0 +1,93 @@
+<?xml version='1.0' encoding='utf8'?>
+<nuitka-compilation-report nuitka_version="2.7.12" nuitka_commercial_version="not installed" mode="standalone" completion="error exit message (1)" exit_message="transformers: Making changes to 'transformers.commands.add_new_model_like' that cause SyntaxError 'f-string: empty expression not allowed (add_new_model_like.py, line 330)'">
+  <performance>
+    <memory_usage name="after_launch" value="58974208" />
+  </performance>
+  <data_file name="ffmpeg.exe" source="${cwd}\assets\ffmpeg.exe" size="87429632" reason="specified data file 'assets/ffmpeg.exe=ffmpeg.exe' on command line" tags="user,copy" />
+  <data_file name="transformers\kernels\deta\ms_deform_attn.h" source="${sys.prefix}\Lib\site-packages\transformers\kernels\deta\ms_deform_attn.h" size="1837" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\deta\vision.cpp" source="${sys.prefix}\Lib\site-packages\transformers\kernels\deta\vision.cpp" size="798" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\deta\cpu\ms_deform_attn_cpu.cpp" source="${sys.prefix}\Lib\site-packages\transformers\kernels\deta\cpu\ms_deform_attn_cpu.cpp" size="1255" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\deta\cpu\ms_deform_attn_cpu.h" source="${sys.prefix}\Lib\site-packages\transformers\kernels\deta\cpu\ms_deform_attn_cpu.h" size="1138" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\deta\cuda\ms_deform_attn_cuda.cu" source="${sys.prefix}\Lib\site-packages\transformers\kernels\deta\cuda\ms_deform_attn_cuda.cu" size="7360" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\deta\cuda\ms_deform_attn_cuda.cuh" source="${sys.prefix}\Lib\site-packages\transformers\kernels\deta\cuda\ms_deform_attn_cuda.cuh" size="61433" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\deta\cuda\ms_deform_attn_cuda.h" source="${sys.prefix}\Lib\site-packages\transformers\kernels\deta\cuda\ms_deform_attn_cuda.h" size="1139" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\deta\cuda\ms_deform_im2col_cuda.cuh" source="${sys.prefix}\Lib\site-packages\transformers\kernels\deta\cuda\ms_deform_im2col_cuda.cuh" size="54695" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\mra\cuda_kernel.cu" source="${sys.prefix}\Lib\site-packages\transformers\kernels\mra\cuda_kernel.cu" size="11678" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\mra\cuda_kernel.h" source="${sys.prefix}\Lib\site-packages\transformers\kernels\mra\cuda_kernel.h" size="1682" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\mra\cuda_launch.cu" source="${sys.prefix}\Lib\site-packages\transformers\kernels\mra\cuda_launch.cu" size="4072" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\mra\cuda_launch.h" source="${sys.prefix}\Lib\site-packages\transformers\kernels\mra\cuda_launch.h" size="707" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\mra\torch_extension.cpp" source="${sys.prefix}\Lib\site-packages\transformers\kernels\mra\torch_extension.cpp" size="1405" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\rwkv\wkv_cuda.cu" source="${sys.prefix}\Lib\site-packages\transformers\kernels\rwkv\wkv_cuda.cu" size="6219" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\rwkv\wkv_cuda_bf16.cu" source="${sys.prefix}\Lib\site-packages\transformers\kernels\rwkv\wkv_cuda_bf16.cu" size="6633" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\rwkv\wkv_op.cpp" source="${sys.prefix}\Lib\site-packages\transformers\kernels\rwkv\wkv_op.cpp" size="4022" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\yoso\common.h" source="${sys.prefix}\Lib\site-packages\transformers\kernels\yoso\common.h" size="273" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\yoso\common_cuda.h" source="${sys.prefix}\Lib\site-packages\transformers\kernels\yoso\common_cuda.h" size="258" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\yoso\common_cuda_device.h" source="${sys.prefix}\Lib\site-packages\transformers\kernels\yoso\common_cuda_device.h" size="2063" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\yoso\fast_lsh_cumulation.cu" source="${sys.prefix}\Lib\site-packages\transformers\kernels\yoso\fast_lsh_cumulation.cu" size="19061" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\yoso\fast_lsh_cumulation.h" source="${sys.prefix}\Lib\site-packages\transformers\kernels\yoso\fast_lsh_cumulation.h" size="1575" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\yoso\fast_lsh_cumulation_cuda.cu" source="${sys.prefix}\Lib\site-packages\transformers\kernels\yoso\fast_lsh_cumulation_cuda.cu" size="32870" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\yoso\fast_lsh_cumulation_cuda.h" source="${sys.prefix}\Lib\site-packages\transformers\kernels\yoso\fast_lsh_cumulation_cuda.h" size="5490" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_file name="transformers\kernels\yoso\fast_lsh_cumulation_torch.cpp" source="${sys.prefix}\Lib\site-packages\transformers\kernels\yoso\fast_lsh_cumulation_torch.cpp" size="3154" reason="package 'transformers' package data" tags="user,package_data,copy" />
+  <data_composer blob_size="None" />
+  <command_line>
+    <option value="--standalone" />
+    <option value="--enable-plugin=pyside6" />
+    <option value="--disable-plugin=anti-bloat" />
+    <option value="--no-pyi-file" />
+    <option value="--assume-yes-for-downloads" />
+    <option value="--include-package-data=transformers" />
+    <option value="--verbose" />
+    <option value="--show-progress" />
+    <option value="--show-memory" />
+    <option value="--include-package=torch" />
+    <option value="--include-package=torchaudio" />
+    <option value="--include-package=whisperx" />
+    <option value="--include-package=librosa" />
+    <option value="--include-package=transformers" />
+    <option value="--include-package=speechbrain" />
+    <option value="--include-package=pyannote.audio" />
+    <option value="--include-package=accelerate" />
+    <option value="--include-package=onnxruntime" />
+    <option value="--include-package=openai-whisper" />
+    <option value="--include-package=faster-whisper" />
+    <option value="--include-data-files=assets/ffmpeg.exe=ffmpeg.exe" />
+    <option value="--output-dir=build_nuitka" />
+    <option value="--output-filename=Magic_Time_Studio.exe" />
+    <option value="magic_time_studio\run.py" />
+  </command_line>
+  <plugins>
+    <plugin name="data-files" user_enabled="no" />
+    <plugin name="delvewheel" user_enabled="no" />
+    <plugin name="dll-files" user_enabled="no" />
+    <plugin name="eventlet" user_enabled="no" />
+    <plugin name="gevent" user_enabled="no" />
+    <plugin name="gi" user_enabled="no" />
+    <plugin name="glfw" user_enabled="no" />
+    <plugin name="implicit-imports" user_enabled="no" />
+    <plugin name="kivy" user_enabled="no" />
+    <plugin name="matplotlib" user_enabled="no" />
+    <plugin name="multiprocessing" user_enabled="no" />
+    <plugin name="options-nanny" user_enabled="no" />
+    <plugin name="pbr-compat" user_enabled="no" />
+    <plugin name="pkg-resources" user_enabled="no" />
+    <plugin name="playwright" user_enabled="no" />
+    <plugin name="pyside6" user_enabled="yes" />
+    <plugin name="pywebview" user_enabled="no" />
+    <plugin name="spacy" user_enabled="no" />
+    <plugin name="transformers" user_enabled="no" />
+  </plugins>
+  <distributions />
+  <python python_exe="${sys.prefix}\Scripts\python.exe" python_flavor="CPython Official" python_version="3.11.1" os_name="Windows" os_release="11" arch_name="x86_64" filesystem_encoding="utf-8">
+    <search_path>
+      <path value="${cwd}" />
+      <path value="${cwd}\magic_time_studio" />
+      <path value="${sys.real_prefix}\DLLs" />
+      <path value="${sys.real_prefix}\Lib" />
+      <path value="${sys.real_prefix}" />
+      <path value="${sys.prefix}" />
+      <path value="${sys.prefix}\Lib\site-packages" />
+      <path value="${sys.prefix}\Lib\site-packages\setuptools\_vendor" />
+    </search_path>
+  </python>
+  <output run_filename="${cwd}\build_nuitka\run.dist\Magic_Time_Studio.exe" />
+</nuitka-compilation-report>

@@ -5,10 +5,10 @@ Dit bestand zorgt ervoor dat PyInstaller alle modules correct kan vinden
 
 # Zorg ervoor dat alle modules beschikbaar zijn
 try:
-    from magic_time_studio.core import *
-    from magic_time_studio.app_core import *
-    from magic_time_studio.ui_pyqt6 import *
-    from magic_time_studio.models import *
+    from core import *
+    from app_core import *
+    from ui_pyside6 import *
+    from models import *
     print("✅ Root package: Alle modules geladen")
 except ImportError as e:
     print(f"⚠️ Root package: Fout bij laden modules: {e}")

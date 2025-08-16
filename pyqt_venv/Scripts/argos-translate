@@ -1,0 +1,7 @@
+#!D:\project\magic_time\pyqt_venv\Scripts\python.exe
+
+from argostranslate import cli
+
+cli.main()
+
+

@@ -2,136 +2,139 @@
 
 block_cipher = None
 
-# Bestanden en mappen die gekopieerd moeten worden
-datas = [
-    # Magic Time Studio modules
-    ('magic_time_studio', 'magic_time_studio'),
-    ('magic_time_studio/core', 'magic_time_studio/core'),
-    ('magic_time_studio/app_core', 'magic_time_studio/app_core'),
-    ('magic_time_studio/ui_pyqt6', 'magic_time_studio/ui_pyqt6'),
-    ('magic_time_studio/models', 'magic_time_studio/models'),
-    
-    # Assets (inclusief FFmpeg)
-    ('assets', 'assets'),
-    
-    # FFmpeg executables expliciet toevoegen
-    ('assets/ffmpeg.exe', '.'),
-    
-    # Config bestanden
-    ('magic_time_studio/whisper_config.env', 'magic_time_studio'),
-    
-    # Unittest module (handmatig toevoegen)
-    ('C:/Python311/Lib/unittest', 'unittest'),
-]
-
-# Verborgen imports die PyInstaller niet automatisch vindt
-hiddenimports = [
-    # PyQt6
-    'PyQt6.QtCore',
-    'PyQt6.QtGui', 
-    'PyQt6.QtWidgets',
-    'PyQt6.QtNetwork',
-    
-    # Magic Time Studio package
-    'magic_time_studio',
-    
-    # Whisper en Fast Whisper
-    'faster_whisper',
-    'whisper',
-    
-    # Torch (PyTorch) - CUDA versie
-    'torch',
-    'torch.nn',
-    'torch.utils',
-    
-    # Audio processing
-    'numpy',
-    'librosa',
-    'soundfile',
-    'av',
-    
-    # Machine learning
-    'numba',
-    'llvmlite',
-    'ctranslate2',
-    'tokenizers',
-    
-    # HTTP requests voor vertaling
-    'requests',
-    'urllib3',
-    'certifi',
-    'charset_normalizer',
-    
-    # GPU monitoring
-    'pynvml',
-    
-    # Extra imports voor betere compatibiliteit
-    'pathlib',
-    'os',
-    'sys',
-    'threading',
-    'queue',
-    'datetime',
-    'json',
-    'pickle',
-    'hashlib',
-    'shutil',
-    'tempfile',
-    'subprocess',
-    'webbrowser',
-    'time',
-    'logging',
-    'typing',
-    'collections',
-    'itertools',
-    'functools',
-    'contextlib',
-    'inspect',
-    'importlib',
-    
-    # PyTorch dependencies
-    'unittest',
-]
-
-# Exclude onnodige modules om de exe kleiner te maken
-excludes = [
-    'tkinter',
-    'matplotlib',
-    'scipy',
-    'pandas',
-    'IPython',
-    'jupyter',
-    'notebook',
-    'pytest',
-    'unittest',
-    'test',
-    'tests',
-    'doc',
-    'docs',
-    '*.pyc',
-    '__pycache__',
-]
-
-# Runtime hooks voor betere pad handling
-runtime_hooks = ['tools/hooks/runtime_hook.py']
-
 a = Analysis(
-    ['magic_time_studio/run.py'],  # Gebruik run.py als entry point
+    ['run.py'],
     pathex=[],
     binaries=[],
-    datas=datas,
-    hiddenimports=hiddenimports,
+    datas=[
+        ('ui_pyside6', 'ui_pyside6'),
+        ('app_core', 'app_core'),
+        ('core', 'core'),
+        ('models', 'models'),
+        ('assets', 'assets'),
+        ('whisper_config.env', '.'),
+        ('panel_config.json', '.'),
+        # ('config.json', '.'),  # Bestaat niet - commentaar uit
+        # Lightning data files
+        ('pyqt_venv/Lib/site-packages/lightning', 'lightning'),
+        ('pyqt_venv/Lib/site-packages/lightning_fabric', 'lightning_fabric'),
+        ('pyqt_venv/Lib/site-packages/lightning_utilities', 'lightning_utilities'),
+        ('pyqt_venv/Lib/site-packages/pytorch_lightning', 'pytorch_lightning'),
+        # SpeechBrain data files
+        ('pyqt_venv/Lib/site-packages/speechbrain', 'speechbrain'),
+        # WhisperX data files
+        ('pyqt_venv/Lib/site-packages/whisperx', 'whisperx'),
+    ],
+    hiddenimports=[
+        'torch',
+        'whisperx',
+        'whisperx.asr',
+        'whisperx.vad',
+        'whisperx.alignment',
+        'whisperx.diarize',
+        'pydub',
+        'ffmpeg',
+        'protobuf',
+        'PySide6',
+        'PySide6.QtGui',
+        'PySide6.QtWidgets',
+        'PySide6.QtSvg',
+        'PySide6.QtSvgWidgets',
+        'PySide6.QtPrintSupport',
+        'PySide6.QtOpenGL',
+        'PySide6.QtOpenGLWidgets',
+        'PySide6.QtCharts',
+        'PySide6.QtDataVisualization',
+        'PySide6.QtMultimedia',
+        'PySide6.QtMultimediaWidgets',
+        'PySide6.QtBluetooth',
+        'PySide6.QtDBus',
+        'PySide6.QtDesigner',
+        'PySide6.QtHelp',
+        'PySide6.QtLocation',
+        'PySide6.QtMultimedia',
+        'PySide6.QtMultimediaWidgets',
+        'PySide6.QtNfc',
+        'PySide6.QtPositioning',
+        'PySide6.QtQml',
+        'PySide6.QtQuick',
+        'PySide6.QtQuickWidgets',
+        'PySide6.QtRemoteObjects',
+        'PySide6.QtScxml',
+        'PySide6.QtSensors',
+        'PySide6.QtSerialPort',
+        'PySide6.QtSql',
+        'PySide6.QtTest',
+        'PySide6.QtTextToSpeech',
+        'PySide6.QtWebChannel',
+        'PySide6.QtWebEngine',
+        'PySide6.QtWebEngineCore',
+        'PySide6.QtWebEngineWidgets',
+        'PySide6.QtWebSockets',
+        'PySide6.QtXml',
+        'PySide6.QtXmlPatterns',
+        'lightning',
+        'lightning_fabric',
+        'lightning.pytorch',
+        'lightning.pytorch.core',
+        'lightning.pytorch.utilities',
+        'librosa',
+        'numpy',
+        'scipy',
+        'soundfile',
+        'pydub',
+        'ffmpeg',
+        'pyannote.audio',
+        'pyannote.pipeline',
+        'pyannote.audio.core.pipeline',
+        'pyannote.audio.core.model',
+        'pyannote.audio.core.io',
+        'pyannote.audio.pipelines.voice_activity_detection',
+        'pyannote.audio.pipelines.speaker_diarization',
+        'pyannote.audio.models',
+        'pyannote.audio.utils',
+        'pyannote.audio.tasks.segmentation.voice_activity_detection',
+        'pyannote.audio.tasks.segmentation.speaker_diarization',
+        'pyannote.audio.tasks.segmentation.overlapped_speech_detection',
+        'pyannote.audio.tasks.embedding',
+        'pyannote.audio.tasks.separation',
+        'pyannote.audio.torchmetrics',
+        'pyannote.audio.torchmetrics.audio',
+        'pyannote.audio.torchmetrics.functional',
+        'pyannote.audio.torchmetrics.classification',
+        'pyannote.audio.torchmetrics.regression',
+        'pyannote.audio.torchmetrics.clustering',
+        'pyannote.audio.torchmetrics.embedding',
+        'pyannote.audio.torchmetrics.segmentation',
+        'pyannote.audio.torchmetrics.separation',
+        'pyannote.core',
+        'pyannote.core.utils',
+        'pyannote.core.utils.helper',
+        'pyannote.core.feature',
+        'pyannote.database',
+        'pyannote.database.protocol',
+        'pyannote.database.protocol.speaker_diarization',
+        'pyannote.database.protocol.segmentation',
+        'pyannote.pipeline',
+        'pyannote.pipeline.experiment',
+        'transformers',
+        'sentencepiece',
+        'protobuf',
+        'tqdm',
+        'requests',
+        'urllib3',
+        'certifi',
+        'charset_normalizer',
+        'idna',
+    ],
     hookspath=['tools/hooks'],
     hooksconfig={},
-    runtime_hooks=runtime_hooks,
-    excludes=excludes,
+    runtime_hooks=['tools/hooks/runtime_hook.py'],
+    excludes=[],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
     noarchive=False,
-    datas_excludes=['**/test*', '**/tests*', '**/doc*', '**/docs*', '**/__pycache__*', '**/*.pyc'],
-    # FFmpeg hook configuratie
-    hookspath_ignore_missing=True,
 )
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
@@ -146,14 +149,13 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=True,  # Console venster tonen
+    console=True,  # Console aan voor debugging
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='assets/Magic_Time_Studio.ico',  # Hoofdicon
-    noconfirm=True,  # Automatisch overschrijven zonder bevestiging
+    icon='assets/Magic_Time_Studio.ico'
 )
 
 coll = COLLECT(
@@ -164,6 +166,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='Magic_Time_Studio',
-    noconfirm=True,  # Automatisch overschrijven zonder bevestiging
+    name='Magic_Time_Studio'
 )
